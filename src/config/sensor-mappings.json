@@ -1,0 +1,216 @@
+{
+  "sensors": [
+    {
+      "id": "dht22",
+      "name": "DHT22 Temperature & Humidity",
+      "description": "Digital temperature and humidity sensor",
+      "format": "key-value",
+      "pattern": "^.*TEMP:\\s*([0-9.\\-]+).*HUMID:\\s*([0-9.\\-]+)",
+      "fields": [
+        {
+          "name": "Temperature",
+          "unit": "°C",
+          "color": "#FF6384",
+          "captureGroup": 1
+        },
+        {
+          "name": "Humidity",
+          "unit": "%",
+          "color": "#36A2EB",
+          "captureGroup": 2
+        }
+      ]
+    },
+    {
+      "id": "bme280",
+      "name": "BME280 Environmental Sensor",
+      "description": "Temperature, humidity, and pressure sensor",
+      "format": "csv",
+      "pattern": "^([0-9.\\-]+),([0-9.\\-]+),([0-9.\\-]+)",
+      "fields": [
+        {
+          "name": "Temperature",
+          "unit": "°C",
+          "color": "#FF6384",
+          "captureGroup": 1
+        },
+        {
+          "name": "Humidity",
+          "unit": "%",
+          "color": "#36A2EB",
+          "captureGroup": 2
+        },
+        {
+          "name": "Pressure",
+          "unit": "hPa",
+          "color": "#FFCE56",
+          "captureGroup": 3
+        }
+      ]
+    },
+    {
+      "id": "ds18b20",
+      "name": "DS18B20 Temperature",
+      "description": "Digital temperature sensor",
+      "format": "key-value",
+      "pattern": "^.*TEMP:\\s*([0-9.\\-]+)",
+      "fields": [
+        {
+          "name": "Temperature",
+          "unit": "°C",
+          "color": "#FF6384",
+          "captureGroup": 1
+        }
+      ]
+    },
+    {
+      "id": "hcsr04",
+      "name": "HC-SR04 Ultrasonic Distance",
+      "description": "Ultrasonic distance sensor",
+      "format": "key-value",
+      "pattern": "^.*DIST(?:ANCE)?:\\s*([0-9.\\-]+)",
+      "fields": [
+        {
+          "name": "Distance",
+          "unit": "cm",
+          "color": "#4BC0C0",
+          "captureGroup": 1
+        }
+      ]
+    },
+    {
+      "id": "bmp180",
+      "name": "BMP180 Pressure Sensor",
+      "description": "Barometric pressure and temperature sensor",
+      "format": "key-value",
+      "pattern": "^.*TEMP:\\s*([0-9.\\-]+).*PRESS(?:URE)?:\\s*([0-9.\\-]+)",
+      "fields": [
+        {
+          "name": "Temperature",
+          "unit": "°C",
+          "color": "#FF6384",
+          "captureGroup": 1
+        },
+        {
+          "name": "Pressure",
+          "unit": "hPa",
+          "color": "#FFCE56",
+          "captureGroup": 2
+        }
+      ]
+    },
+    {
+      "id": "mpu6050",
+      "name": "MPU6050 Accelerometer & Gyroscope",
+      "description": "6-axis motion tracking sensor",
+      "format": "key-value",
+      "pattern": "^.*AX:\\s*([0-9.\\-]+).*AY:\\s*([0-9.\\-]+).*AZ:\\s*([0-9.\\-]+).*GX:\\s*([0-9.\\-]+).*GY:\\s*([0-9.\\-]+).*GZ:\\s*([0-9.\\-]+)",
+      "fields": [
+        {
+          "name": "Accel X",
+          "unit": "g",
+          "color": "#FF6384",
+          "captureGroup": 1
+        },
+        {
+          "name": "Accel Y",
+          "unit": "g",
+          "color": "#36A2EB",
+          "captureGroup": 2
+        },
+        {
+          "name": "Accel Z",
+          "unit": "g",
+          "color": "#FFCE56",
+          "captureGroup": 3
+        },
+        {
+          "name": "Gyro X",
+          "unit": "°/s",
+          "color": "#4BC0C0",
+          "captureGroup": 4
+        },
+        {
+          "name": "Gyro Y",
+          "unit": "°/s",
+          "color": "#9966FF",
+          "captureGroup": 5
+        },
+        {
+          "name": "Gyro Z",
+          "unit": "°/s",
+          "color": "#FF9F40",
+          "captureGroup": 6
+        }
+      ]
+    },
+    {
+      "id": "analog",
+      "name": "Analog Value",
+      "description": "Generic analog sensor reading",
+      "format": "key-value",
+      "pattern": "^.*(?:VAL(?:UE)?|ANALOG):\\s*([0-9.\\-]+)",
+      "fields": [
+        {
+          "name": "Value",
+          "unit": "",
+          "color": "#FF6384",
+          "captureGroup": 1
+        }
+      ]
+    },
+    {
+      "id": "voltage",
+      "name": "Voltage Sensor",
+      "description": "Voltage measurement",
+      "format": "key-value",
+      "pattern": "^.*(?:VOLT(?:AGE)?|V):\\s*([0-9.\\-]+)",
+      "fields": [
+        {
+          "name": "Voltage",
+          "unit": "V",
+          "color": "#FF9F40",
+          "captureGroup": 1
+        }
+      ]
+    },
+    {
+      "id": "current",
+      "name": "Current Sensor",
+      "description": "Current measurement",
+      "format": "key-value",
+      "pattern": "^.*(?:CURRENT|AMPS?|I):\\s*([0-9.\\-]+)",
+      "fields": [
+        {
+          "name": "Current",
+          "unit": "A",
+          "color": "#9966FF",
+          "captureGroup": 1
+        }
+      ]
+    },
+    {
+      "id": "light",
+      "name": "Light Sensor",
+      "description": "Light intensity measurement",
+      "format": "key-value",
+      "pattern": "^.*LIGHT:\\s*([0-9.\\-]+)",
+      "fields": [
+        {
+          "name": "Light",
+          "unit": "lux",
+          "color": "#FFCE56",
+          "captureGroup": 1
+        }
+      ]
+    },
+    {
+      "id": "json",
+      "name": "JSON Format",
+      "description": "Generic JSON sensor data",
+      "format": "json",
+      "pattern": "^\\s*\\{.*\\}\\s*$",
+      "fields": []
+    }
+  ]
+}

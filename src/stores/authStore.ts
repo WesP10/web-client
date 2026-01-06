@@ -1,0 +1,99 @@
+import { create } from 'zustand';
+import { authApi } from '@/services/api';
+import type { User, LoginCredentials } from '@/types';
+
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+
+  // Actions
+  login: (credentials: LoginCredentials) => Promise<void>;
+  logout: () => void;
+  checkAuth: () => Promise<void>;
+  clearError: () => void;
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  token: localStorage.getItem('auth_token'),
+  isAuthenticated: !!localStorage.getItem('auth_token'),
+  isLoading: false,
+  error: null,
+
+  login: async (credentials: LoginCredentials) => {
+    set({ isLoading: true, error: null });
+    try {
+      const tokenData = await authApi.login(credentials);
+      const token = tokenData.access_token;
+
+      // Store token
+      localStorage.setItem('auth_token', token);
+
+      // Fetch user data
+      const user = await authApi.getCurrentUser();
+
+      set({
+        user,
+        token,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.detail || 'Login failed. Please try again.';
+      set({
+        user: null,
+        token: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: errorMessage,
+      });
+      localStorage.removeItem('auth_token');
+      throw error;
+    }
+  },
+
+  logout: () => {
+    localStorage.removeItem('auth_token');
+    set({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      error: null,
+    });
+  },
+
+  checkAuth: async () => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      set({ isAuthenticated: false, user: null, token: null });
+      return;
+    }
+
+    set({ isLoading: true });
+    try {
+      const user = await authApi.getCurrentUser();
+      set({
+        user,
+        token,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      localStorage.removeItem('auth_token');
+      set({
+        user: null,
+        token: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
+    }
+  },
+
+  clearError: () => set({ error: null }),
+}));
