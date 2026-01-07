@@ -111,7 +111,7 @@ export const hubsApi = {
     const response = await api.post<TaskStatusResponse>(
       `/api/hubs/${hubId}/commands/write`,
       {
-        port_id: portId,
+        portId: portId,
         data,
         priority,
       }
@@ -128,8 +128,8 @@ export const hubsApi = {
     const response = await api.post<TaskStatusResponse>(
       `/api/hubs/${hubId}/commands/flash`,
       {
-        port_id: portId,
-        hex_file_content: hexFileContent,
+        portId: portId,
+        hexFileContent: hexFileContent,
         priority,
       }
     );
@@ -144,7 +144,7 @@ export const hubsApi = {
     const response = await api.post<TaskStatusResponse>(
       `/api/hubs/${hubId}/commands/restart`,
       {
-        port_id: portId,
+        portId: portId,
         priority,
       }
     );

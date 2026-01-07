@@ -99,11 +99,21 @@ export interface DeviceEventMessage {
   portId: string;
 }
 
+export interface TaskStatusMessage {
+  type: 'task_status';
+  task_id: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  result?: any;
+  error?: string;
+  timestamp: string;
+}
+
 export type WebSocketMessage =
   | TelemetryMessage
   | HealthMessage
   | DeviceEventMessage
-  | SubscriptionStatusMessage;
+  | SubscriptionStatusMessage
+  | TaskStatusMessage;
 
 // Subscription types
 export interface DeviceSubscription {
@@ -194,6 +204,20 @@ export interface TaskStatusResponse {
   status: string;
   priority: number;
   result?: string;
+  error?: string;
+  created_at: string;
+  started_at?: string;
+  completed_at?: string;
+}
+
+export interface Task {
+  task_id: string;
+  command_type: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  priority: number;
+  port_id: string;
+  hub_id: string;
+  result?: any;
   error?: string;
   created_at: string;
   started_at?: string;

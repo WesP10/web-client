@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { hubsApi } from '@/services/api';
-import type { HubInfo, ActiveSubscription } from '@/types';
+import type { HubInfo, ActiveSubscription, Task } from '@/types';
 
 interface HubState {
   hubs: HubInfo[];
   activeSubscriptions: ActiveSubscription[];
   selectedDevices: Set<string>; // Set of "hubId:portId" strings
+  tasks: Task[]; // Active command tasks
   isLoading: boolean;
   error: string | null;
 
@@ -17,6 +18,13 @@ interface HubState {
   toggleDeviceSelection: (hubId: string, portId: string) => void;
   clearDeviceSelection: () => void;
   getSelectedDevices: () => ActiveSubscription[];
+  
+  // Task management
+  addTask: (task: Task) => void;
+  updateTaskStatus: (update: { task_id: string; status: Task['status']; result?: any; error?: string }) => void;
+  removeTask: (taskId: string) => void;
+  getActiveTaskForPort: (portId: string) => Task | undefined;
+  cleanupCompletedTasks: () => void;
 }
 
 function deviceKey(hubId: string, portId: string): string {
@@ -27,6 +35,7 @@ export const useHubStore = create<HubState>((set, get) => ({
   hubs: [],
   activeSubscriptions: [],
   selectedDevices: new Set(),
+  tasks: [],
   isLoading: false,
   error: null,
 
@@ -114,5 +123,61 @@ export const useHubStore = create<HubState>((set, get) => ({
     });
 
     return selected;
+  },
+
+  // Task management actions
+  addTask: (task: Task) => {
+    set((state) => ({
+      tasks: [...state.tasks, task],
+    }));
+  },
+
+  updateTaskStatus: (update) => {
+    set((state) => ({
+      tasks: state.tasks.map((task) => {
+        if (task.task_id === update.task_id) {
+          const updatedTask = { ...task, status: update.status };
+          
+          if (update.result !== undefined) {
+            updatedTask.result = update.result;
+          }
+          if (update.error !== undefined) {
+            updatedTask.error = update.error;
+          }
+          if (update.status === 'running' && !task.started_at) {
+            updatedTask.started_at = new Date().toISOString();
+          }
+          if ((update.status === 'completed' || update.status === 'failed') && !task.completed_at) {
+            updatedTask.completed_at = new Date().toISOString();
+          }
+          
+          return updatedTask;
+        }
+        return task;
+      }),
+    }));
+  },
+
+  removeTask: (taskId: string) => {
+    set((state) => ({
+      tasks: state.tasks.filter((task) => task.task_id !== taskId),
+    }));
+  },
+
+  getActiveTaskForPort: (portId: string) => {
+    const state = get();
+    return state.tasks.find(
+      (task) =>
+        task.port_id === portId &&
+        (task.status === 'pending' || task.status === 'running')
+    );
+  },
+
+  cleanupCompletedTasks: () => {
+    set((state) => ({
+      tasks: state.tasks.filter(
+        (task) => task.status !== 'completed' && task.status !== 'failed'
+      ),
+    }));
   },
 }));

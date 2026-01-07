@@ -34,6 +34,15 @@ export function MainLayout({ children }: MainLayoutProps) {
       try {
         if (message?.type === 'telemetry_stream') {
           useTelemetryStore.getState().processTelemetry(message as any);
+        } else if (message?.type === 'task_status') {
+          // Handle task status updates
+          const hubStore = useHubStore.getState();
+          hubStore.updateTaskStatus({
+            task_id: message.task_id,
+            status: message.status,
+            result: message.result,
+            error: message.error,
+          });
         } else if (message?.type === 'device_event') {
           // Handle device disconnect events by auto-unsubscribing
           if (message.event === 'disconnected') {

@@ -2,16 +2,36 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Construction, Terminal as TerminalIcon, FileCode, LineChart } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { CommandButton } from '@/components/ui/CommandButton';
+import { Badge } from '@/components/ui/badge';
+import { Construction, Terminal as TerminalIcon, FileCode, LineChart, Send } from 'lucide-react';
+import { commandService } from '@/services/commandService';
 import type { TimeWindow } from '@/types';
 import { useHubStore } from '@/stores/hubStore';
 import { useTelemetryStore } from '@/stores/telemetryStore';
 
 export function LiveTelemetry() {
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('1h');
+  const [serialInputs, setSerialInputs] = useState<Map<string, string>>(new Map());
 
   const { activeSubscriptions } = useHubStore();
   const { devices: telemetryDevices } = useTelemetryStore();
+
+  const handleSerialInput = (key: string, value: string) => {
+    setSerialInputs(new Map(serialInputs).set(key, value));
+  };
+
+  const handleSendSerial = async (hubId: string, portId: string, key: string) => {
+    const data = serialInputs.get(key) || '';
+    if (!data.trim()) return;
+
+    await commandService.serialWrite(hubId, portId, data);
+    
+    // Clear input after sending
+    setSerialInputs(new Map(serialInputs).set(key, ''));
+  };
 
   return (
     <div className="space-y-6">
@@ -97,15 +117,57 @@ export function LiveTelemetry() {
                     const key = `${sub.hubId}:${sub.portId}`;
                     const device = telemetryDevices.get(key);
                     const lastLines = device?.rawData ? device.rawData.split('\n').slice(-5).join('\n') : 'No data yet';
+                    const inputValue = serialInputs.get(key) || '';
+                    
                     return (
                       <Card key={key} className="p-3">
                         <div className="flex items-start justify-between">
-                          <div>
+                          <div className="flex-1">
                             <div className="font-medium">{sub.hubId} → {sub.portId}</div>
-                            <div className="text-xs text-muted-foreground mt-1">Subscribed at {new Date(sub.subscribedAt).toLocaleTimeString()}</div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-muted-foreground">Subscribed at {new Date(sub.subscribedAt).toLocaleTimeString()}</span>
+                              {sub.sensorType && (
+                                <Badge variant="outline" className="text-xs">
+                                  {sub.sensorName || sub.sensorType}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <CommandButton
+                              hubId={sub.hubId}
+                              portId={sub.portId}
+                              commandType="restart"
+                              variant="outline"
+                              size="sm"
+                            />
                           </div>
                         </div>
                         <pre className="mt-3 bg-black text-white p-3 rounded text-xs whitespace-pre-wrap">{lastLines}</pre>
+                        
+                        {/* Serial Write Input */}
+                        <div className="mt-3 flex items-center gap-2">
+                          <Input
+                            type="text"
+                            placeholder="Type data to send..."
+                            value={inputValue}
+                            onChange={(e) => handleSerialInput(key, e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendSerial(sub.hubId, sub.portId, key);
+                              }
+                            }}
+                            className="flex-1 text-sm"
+                          />
+                          <Button
+                            onClick={() => handleSendSerial(sub.hubId, sub.portId, key)}
+                            size="sm"
+                            disabled={!inputValue.trim()}
+                          >
+                            <Send className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </Card>
                     );
                   })}

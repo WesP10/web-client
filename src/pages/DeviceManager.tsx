@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { CommandButton } from '@/components/ui/CommandButton';
 import { Layers, Radio, CheckSquare, XSquare, Wifi, WifiOff, AlertCircle } from 'lucide-react';
 import type { PortInfo, ConnectionInfo } from '@/types';
 
@@ -26,6 +27,7 @@ export function DeviceManager() {
   const [expandedHubs, setExpandedHubs] = useState<Set<string>>(new Set());
   const INACTIVE_TIMEOUT_MS = 60 * 1000; // 1 minute
   const [sessionActivity, setSessionActivity] = useState<Map<string, { bytesRead: number; bytesWritten: number; lastActive: number }>>(new Map());
+  const [, forceUpdate] = useState(0);
 
   // Fetch hubs on mount
   useEffect(() => {
@@ -161,6 +163,15 @@ export function DeviceManager() {
     }
   }, [hubs]);
 
+  // Force re-render every second to update countdown timers
+  useEffect(() => {
+    const interval = setInterval(() => {
+      forceUpdate(prev => prev + 1);
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
   const toggleHubExpansion = (hubId: string) => {
     setExpandedHubs((prev) => {
       const newSet = new Set(prev);
@@ -188,6 +199,15 @@ export function DeviceManager() {
 
   const isSubscribed = (hubId: string, portId: string): boolean => {
     return activeSubscriptions.some((s) => s.hubId === hubId && s.portId === portId);
+  };
+
+  const getTimeRemaining = (hubId: string, portId: string, sessionId: string): number | null => {
+    const activityKey = `${hubId}:${portId}:${sessionId}`;
+    const activity = sessionActivity.get(activityKey);
+    if (!activity) return null;
+    const elapsed = Date.now() - activity.lastActive;
+    const remaining = INACTIVE_TIMEOUT_MS - elapsed;
+    return remaining > 0 ? remaining : 0;
   };
 
   const handleSubscribeSelected = async () => {
@@ -337,11 +357,18 @@ export function DeviceManager() {
                                   {connection.baud_rate} baud
                                 </Badge>
                               )}
-                              {sensorType && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {sensorType}
-                                </Badge>
-                              )}
+                              {connection && (() => {
+                                const timeRemaining = getTimeRemaining(hub.hubId, port.port_id, connection.session_id);
+                                if (timeRemaining !== null && timeRemaining <= 30000) {
+                                  const seconds = Math.ceil(timeRemaining / 1000);
+                                  return (
+                                    <Badge variant="outline" className="text-xs bg-yellow-500/20 text-yellow-600 border-yellow-500">
+                                      Inactive: {seconds}s
+                                    </Badge>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </div>
                             <div className="text-xs text-muted-foreground mt-1">
                               {port.description || port.manufacturer || 'Unknown device'}
@@ -361,6 +388,15 @@ export function DeviceManager() {
                                 <Radio className="mr-1 h-3 w-3" />
                                 Subscribed
                               </Badge>
+                              {connection && (
+                                <CommandButton
+                                  hubId={hub.hubId}
+                                  portId={port.port_id}
+                                  commandType="restart"
+                                  variant="outline"
+                                  size="sm"
+                                />
+                              )}
                               <Button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -377,6 +413,16 @@ export function DeviceManager() {
                               {webSocketService.hasPendingSubscription(hub.hubId, port.port_id) ? (
                                 <Badge className="bg-yellow-400 mr-2">Pending</Badge>
                               ) : null}
+
+                              {connection && (
+                                <CommandButton
+                                  hubId={hub.hubId}
+                                  portId={port.port_id}
+                                  commandType="restart"
+                                  variant="ghost"
+                                  size="sm"
+                                />
+                              )}
 
                               <Button
                                 onClick={(e) => {
@@ -432,11 +478,6 @@ export function DeviceManager() {
                           <span className="font-medium text-sm">
                             {sub.hubId} → {sub.portId}
                           </span>
-                          {sensorType && (
-                            <Badge variant="secondary" className="text-xs">
-                              {sensorType}
-                            </Badge>
-                          )}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           Subscribed at {new Date(sub.subscribedAt).toLocaleTimeString()}
