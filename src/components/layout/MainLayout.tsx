@@ -1,5 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
+import { useTelemetryStore } from '@/stores/telemetryStore';
+import { useHubStore } from '@/stores/hubStore';
+import { webSocketService } from '@/services/websocket';
 import { Button } from '@/components/ui/button';
 import { LayoutDashboard, Layers, Activity, LogOut } from 'lucide-react';
 
@@ -24,12 +28,42 @@ export function MainLayout({ children }: MainLayoutProps) {
     return location.pathname.startsWith(path);
   };
 
+  // Register web socket telemetry handler
+  useEffect(() => {
+    const handler = (message: any) => {
+      try {
+        if (message?.type === 'telemetry_stream') {
+          useTelemetryStore.getState().processTelemetry(message as any);
+        } else if (message?.type === 'device_event') {
+          // Handle device disconnect events by auto-unsubscribing
+          if (message.event === 'disconnected') {
+            const hubStore = useHubStore.getState();
+            const isSubscribed = hubStore.activeSubscriptions.some(
+              (s) => s.hubId === message.hubId && s.portId === message.portId
+            );
+            if (isSubscribed) {
+              console.log(`Device ${message.hubId}:${message.portId} disconnected, removing subscription`);
+              webSocketService.unsubscribe(message.hubId, message.portId);
+              hubStore.removeSubscription(message.hubId, message.portId);
+            }
+          }
+        }
+      } catch (e) {
+        // Keep handler robust
+        // eslint-disable-next-line no-console
+        console.error('Error in WebSocket message handler:', e);
+      }
+    };
+
+    const unsub = webSocketService.onMessage(handler);
+    return () => unsub();
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Sidebar */}
       <aside className="fixed inset-y-0 left-0 z-50 w-64 border-r bg-card shadow-lg">
         <div className="flex h-full flex-col">
-          {/* Logo/Title */}
           <div className="flex h-16 items-center border-b px-6 bg-background/50">
             <div className="flex items-center gap-2">
               <Activity className="h-6 w-6 text-primary" />

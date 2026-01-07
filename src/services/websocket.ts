@@ -18,6 +18,9 @@ class WebSocketService {
   private isIntentionallyClosed = false;
   private token: string | null = null;
 
+  // Queue subscriptions requested while the socket is not yet open
+  private pendingSubscriptions: DeviceSubscription[] = [];
+
   /**
    * Connect to the WebSocket server
    */
@@ -39,6 +42,18 @@ class WebSocketService {
       this.ws.onopen = () => {
         console.log('WebSocket connected');
         this.reconnectAttempts = 0;
+
+        // Flush any pending subscriptions that were queued while connecting
+        if (this.pendingSubscriptions.length > 0) {
+          console.log(`Flushing ${this.pendingSubscriptions.length} pending subscription(s)`);
+          const message: SubscribeMessage = {
+            type: 'subscribe',
+            subscriptions: [...this.pendingSubscriptions],
+          };
+          // Clear before send to avoid re-queue on failure
+          this.pendingSubscriptions = [];
+          this.send(message);
+        }
       };
 
       this.ws.onmessage = (event: MessageEvent) => {
@@ -91,18 +106,43 @@ class WebSocketService {
   subscribe(hubId: string, portId: string): void;
   subscribe(subscriptions: DeviceSubscription[]): void;
   subscribe(arg1: string | DeviceSubscription[], arg2?: string): void {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.error('WebSocket not connected');
-      return;
-    }
+    let subscriptions: DeviceSubscription[] | null = null;
 
-    let subscriptions: DeviceSubscription[];
     if (typeof arg1 === 'string' && arg2) {
       subscriptions = [{ hubId: arg1, portId: arg2 }];
     } else if (Array.isArray(arg1)) {
       subscriptions = arg1;
     } else {
       console.error('Invalid subscribe arguments');
+      return;
+    }
+
+    // If socket isn't ready, queue subscriptions and attempt to connect
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      console.warn('WebSocket not connected; queuing subscription and attempting connect');
+
+      // Dedupe queued subscriptions to avoid duplicates from multiple clicks
+      for (const sub of subscriptions) {
+        const exists = this.pendingSubscriptions.some(
+          (s) => s.hubId === sub.hubId && s.portId === sub.portId
+        );
+        if (!exists) {
+          this.pendingSubscriptions.push(sub);
+        } else {
+          console.log('Subscription already queued:', sub);
+        }
+      }
+
+      // Try to connect using stored token (fallback to localStorage)
+      const token = this.token || localStorage.getItem('auth_token');
+      if (token) {
+        try {
+          this.connect(token);
+        } catch (e) {
+          console.error('Failed to initiate WebSocket connect while queuing subscription:', e);
+        }
+      }
+
       return;
     }
 
@@ -120,18 +160,23 @@ class WebSocketService {
   unsubscribe(hubId: string, portId: string): void;
   unsubscribe(subscriptions: DeviceSubscription[]): void;
   unsubscribe(arg1: string | DeviceSubscription[], arg2?: string): void {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.error('WebSocket not connected');
-      return;
-    }
-
-    let subscriptions: DeviceSubscription[];
+    let subscriptions: DeviceSubscription[] | null = null;
     if (typeof arg1 === 'string' && arg2) {
       subscriptions = [{ hubId: arg1, portId: arg2 }];
     } else if (Array.isArray(arg1)) {
       subscriptions = arg1;
     } else {
       console.error('Invalid unsubscribe arguments');
+      return;
+    }
+
+    // If we have queued subscriptions, remove matching ones from queue
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      this.pendingSubscriptions = this.pendingSubscriptions.filter(
+        (s) => !subscriptions!.some((u) => u.hubId === s.hubId && u.portId === s.portId)
+      );
+
+      console.warn('WebSocket not connected; removed matching subscriptions from queue');
       return;
     }
 
@@ -159,6 +204,7 @@ class WebSocketService {
    * Send a message to the WebSocket server
    */
   private send(message: any): void {
+    console.log('Sending WebSocket message:', message);
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
     } else {
@@ -170,6 +216,7 @@ class WebSocketService {
    * Handle incoming WebSocket messages
    */
   private handleMessage(message: WebSocketMessage): void {
+    console.log('Received WebSocket message:', message);
     this.messageHandlers.forEach((handler) => {
       try {
         handler(message);
@@ -213,6 +260,14 @@ class WebSocketService {
    */
   isConnected(): boolean {
     return this.ws?.readyState === WebSocket.OPEN;
+  }
+
+  hasPendingSubscription(hubId: string, portId: string): boolean {
+    return this.pendingSubscriptions.some((s) => s.hubId === hubId && s.portId === portId);
+  }
+
+  getPendingSubscriptions(): DeviceSubscription[] {
+    return [...this.pendingSubscriptions];
   }
 }
 

@@ -4,9 +4,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Construction, Terminal as TerminalIcon, FileCode, LineChart } from 'lucide-react';
 import type { TimeWindow } from '@/types';
+import { useHubStore } from '@/stores/hubStore';
+import { useTelemetryStore } from '@/stores/telemetryStore';
 
 export function LiveTelemetry() {
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('1h');
+
+  const { activeSubscriptions } = useHubStore();
+  const { devices: telemetryDevices } = useTelemetryStore();
 
   return (
     <div className="space-y-6">
@@ -77,23 +82,35 @@ export function LiveTelemetry() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Construction className="h-5 w-5" />
-                Serial Terminal - Coming Soon
+                Serial Terminal - Live
               </CardTitle>
               <CardDescription>
-                Arduino IDE-style serial monitor
+                Recent telemetry from your subscribed devices
               </CardDescription>
             </CardHeader>
-            <CardContent className="py-12">
-              <div className="text-center text-muted-foreground">
-                <p>Terminal features:</p>
-                <ul className="mt-4 space-y-2">
-                  <li>• Monospace font with dark theme</li>
-                  <li>• Auto-scroll to latest data</li>
-                  <li>• Timestamps per line</li>
-                  <li>• Clear buffer button</li>
-                  <li>• UTF-8 decoded text display</li>
-                </ul>
-              </div>
+            <CardContent>
+              {activeSubscriptions.length === 0 ? (
+                <div className="text-sm text-muted-foreground py-6">No active subscriptions. Subscribe to devices in Device Manager.</div>
+              ) : (
+                <div className="space-y-4">
+                  {activeSubscriptions.map((sub) => {
+                    const key = `${sub.hubId}:${sub.portId}`;
+                    const device = telemetryDevices.get(key);
+                    const lastLines = device?.rawData ? device.rawData.split('\n').slice(-5).join('\n') : 'No data yet';
+                    return (
+                      <Card key={key} className="p-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="font-medium">{sub.hubId} → {sub.portId}</div>
+                            <div className="text-xs text-muted-foreground mt-1">Subscribed at {new Date(sub.subscribedAt).toLocaleTimeString()}</div>
+                          </div>
+                        </div>
+                        <pre className="mt-3 bg-black text-white p-3 rounded text-xs whitespace-pre-wrap">{lastLines}</pre>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { authApi } from '@/services/api';
+import { webSocketService } from '@/services/websocket';
 import type { User, LoginCredentials } from '@/types';
 
 interface AuthState {
@@ -32,6 +33,13 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Store token
       localStorage.setItem('auth_token', token);
 
+      // Establish WebSocket connection
+      try {
+        webSocketService.connect(token);
+      } catch (e) {
+        console.error('Failed to connect WebSocket after login:', e);
+      }
+
       // Fetch user data
       const user = await authApi.getCurrentUser();
 
@@ -59,6 +67,14 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     localStorage.removeItem('auth_token');
+
+    // Disconnect WebSocket on logout
+    try {
+      webSocketService.disconnect();
+    } catch (e) {
+      console.error('Failed to disconnect WebSocket on logout:', e);
+    }
+
     set({
       user: null,
       token: null,
@@ -77,6 +93,16 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true });
     try {
       const user = await authApi.getCurrentUser();
+
+      // Connect WebSocket if token present
+      try {
+        if (token) {
+          webSocketService.connect(token);
+        }
+      } catch (e) {
+        console.error('Failed to connect WebSocket during auth check:', e);
+      }
+
       set({
         user,
         token,

@@ -19,23 +19,97 @@ interface HubWithDevices {
 }
 
 export function DeviceManager() {
-  const { hubs, activeSubscriptions, addSubscription, removeSubscription, selectedDevices, toggleDeviceSelection, clearDeviceSelection } = useHubStore();
+  const { hubs, fetchHubs, activeSubscriptions, addSubscription, removeSubscription, selectedDevices, toggleDeviceSelection, clearDeviceSelection } = useHubStore();
   const { detectedSensors } = useTelemetryStore();
   const [hubsWithDevices, setHubsWithDevices] = useState<HubWithDevices[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [expandedHubs, setExpandedHubs] = useState<Set<string>>(new Set());
+  const INACTIVE_TIMEOUT_MS = 60 * 1000; // 1 minute
+  const [sessionActivity, setSessionActivity] = useState<Map<string, { bytesRead: number; bytesWritten: number; lastActive: number }>>(new Map());
+
+  // Fetch hubs on mount
+  useEffect(() => {
+    fetchHubs();
+  }, [fetchHubs]);
 
   // Fetch hub ports and connections
   const fetchDevices = async () => {
     setIsLoading(true);
     try {
+      const now = Date.now();
+      const updatedActivity = new Map(sessionActivity);
+      const seenActivityKeys: Set<string> = new Set();
       const hubsData = await Promise.all(
         hubs.map(async (hub) => {
           try {
-            const [ports, connections] = await Promise.all([
+            const [portsRaw, connectionsRaw] = await Promise.all([
               hubsApi.getPorts(hub.hubId),
               hubsApi.getConnections(hub.hubId),
             ]);
+            // Deduplicate ports by port_id, keeping the last occurrence
+            const portsMap = new Map();
+            for (const port of portsRaw) {
+              portsMap.set(port.port_id, port);
+            }
+            const ports = Array.from(portsMap.values());
+            // Track activity per session and filter inactive ones
+            const connections: ConnectionInfo[] = [];
+            for (const conn of connectionsRaw as ConnectionInfo[]) {
+              const activityKey = `${hub.hubId}:${conn.port_id}:${conn.session_id}`;
+              seenActivityKeys.add(activityKey);
+              const prev = updatedActivity.get(activityKey);
+              if (!prev) {
+                updatedActivity.set(activityKey, {
+                  bytesRead: conn.bytes_read,
+                  bytesWritten: conn.bytes_written,
+                  lastActive: now,
+                });
+                connections.push(conn);
+              } else {
+                const changed =
+                  prev.bytesRead !== conn.bytes_read ||
+                  prev.bytesWritten !== conn.bytes_written;
+                const lastActive = changed ? now : prev.lastActive;
+                updatedActivity.set(activityKey, {
+                  bytesRead: conn.bytes_read,
+                  bytesWritten: conn.bytes_written,
+                  lastActive,
+                });
+                if (now - lastActive <= INACTIVE_TIMEOUT_MS) {
+                  connections.push(conn);
+                } else {
+                  // Session inactive: auto-unsubscribe and close connection
+                  const isSubbed = activeSubscriptions.some(
+                    (s) => s.hubId === hub.hubId && s.portId === conn.port_id
+                  );
+                  if (isSubbed) {
+                    try {
+                      webSocketService.unsubscribe(hub.hubId, conn.port_id);
+                    } finally {
+                      removeSubscription(hub.hubId, conn.port_id);
+                    }
+                  }
+                  // Close the connection on the hub
+                  try {
+                    await hubsApi.closeConnection(hub.hubId, conn.port_id);
+                  } catch (error) {
+                    console.error(`Failed to close inactive connection ${hub.hubId}:${conn.port_id}:`, error);
+                  }
+                }
+              }
+            }
+            // Auto-unsubscribe for ports on this hub with no active connection
+            const activePortIds = new Set(connections.map((c) => c.port_id));
+            for (const sub of activeSubscriptions) {
+              if (sub.hubId === hub.hubId && !activePortIds.has(sub.portId)) {
+                try {
+                  webSocketService.unsubscribe(hub.hubId, sub.portId);
+                } finally {
+                  removeSubscription(hub.hubId, sub.portId);
+                }
+              }
+            }
+
             return {
               hubId: hub.hubId,
               connected: hub.connected,
@@ -56,6 +130,13 @@ export function DeviceManager() {
         })
       );
       setHubsWithDevices(hubsData);
+      // Prune activity entries that weren't seen this cycle
+      for (const key of Array.from(updatedActivity.keys())) {
+        if (!seenActivityKeys.has(key)) {
+          updatedActivity.delete(key);
+        }
+      }
+      setSessionActivity(updatedActivity);
     } catch (error) {
       console.error('Failed to fetch devices:', error);
     } finally {
@@ -66,6 +147,17 @@ export function DeviceManager() {
   useEffect(() => {
     if (hubs.length > 0) {
       fetchDevices();
+    }
+  }, [hubs]);
+
+  // Auto-refresh devices every 10 seconds to detect disconnections
+  useEffect(() => {
+    if (hubs.length > 0) {
+      const interval = setInterval(() => {
+        fetchDevices();
+      }, 10000); // 10 seconds
+      
+      return () => clearInterval(interval);
     }
   }, [hubs]);
 
@@ -217,7 +309,19 @@ export function DeviceManager() {
                     return (
                       <div
                         key={port.port_id}
-                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/30 transition-colors"
+                        className={`flex items-center justify-between p-3 border rounded-lg hover:bg-accent/30 transition-colors cursor-pointer`}
+                        onClick={(e) => {
+                          // Prevent toggling when clicking a button or checkbox
+                          if (
+                            e.target instanceof HTMLElement &&
+                            (e.target.closest('button') || e.target.closest('input[type="checkbox"]'))
+                          ) {
+                            return;
+                          }
+                          if (!subscribed) {
+                            toggleDeviceSelection(hub.hubId, port.port_id);
+                          }
+                        }}
                       >
                         <div className="flex items-center gap-3 flex-1">
                           <Checkbox
@@ -258,7 +362,10 @@ export function DeviceManager() {
                                 Subscribed
                               </Badge>
                               <Button
-                                onClick={() => handleUnsubscribe(hub.hubId, port.port_id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUnsubscribe(hub.hubId, port.port_id);
+                                }}
                                 variant="outline"
                                 size="sm"
                               >
@@ -266,21 +373,28 @@ export function DeviceManager() {
                               </Button>
                             </>
                           ) : (
-                            <Button
-                              onClick={() => {
-                                webSocketService.subscribe(hub.hubId, port.port_id);
-                                addSubscription({
-                                  hubId: hub.hubId,
-                                  portId: port.port_id,
-                                  subscribedAt: new Date().toISOString(),
-                                });
-                              }}
-                              variant="default"
-                              size="sm"
-                            >
-                              <Radio className="mr-2 h-4 w-4" />
-                              Subscribe
-                            </Button>
+                            <>
+                              {webSocketService.hasPendingSubscription(hub.hubId, port.port_id) ? (
+                                <Badge className="bg-yellow-400 mr-2">Pending</Badge>
+                              ) : null}
+
+                              <Button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  webSocketService.subscribe(hub.hubId, port.port_id);
+                                  addSubscription({
+                                    hubId: hub.hubId,
+                                    portId: port.port_id,
+                                    subscribedAt: new Date().toISOString(),
+                                  });
+                                }}
+                                variant="default"
+                                size="sm"
+                              >
+                                <Radio className="mr-2 h-4 w-4" />
+                                Subscribe
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>

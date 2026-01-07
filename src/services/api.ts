@@ -150,6 +150,21 @@ export const hubsApi = {
     );
     return response.data;
   },
+
+  closeConnection: async (
+    hubId: string,
+    portId: string,
+    priority?: number
+  ): Promise<{ commandId: string; hubId: string; status: string; message: string }> => {
+    const response = await api.post(
+      `/api/hubs/${hubId}/commands/close`,
+      {
+        portId,
+        priority: priority ?? 1,
+      }
+    );
+    return response.data;
+  },
 };
 
 // WebSocket URL helper
