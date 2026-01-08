@@ -122,16 +122,23 @@ export const hubsApi = {
   sendFlashCommand: async (
     hubId: string,
     portId: string,
-    hexFileContent: string,
-    priority?: number
+    firmwareData: string,
+    priority?: number,
+    boardFqbn?: string
   ): Promise<TaskStatusResponse> => {
+    const payload: Record<string, any> = {
+      portId: portId,
+      firmwareData,
+      priority,
+    };
+
+    if (boardFqbn) {
+      payload.boardFqbn = boardFqbn;
+    }
+
     const response = await api.post<TaskStatusResponse>(
       `/api/hubs/${hubId}/commands/flash`,
-      {
-        portId: portId,
-        hexFileContent: hexFileContent,
-        priority,
-      }
+      payload
     );
     return response.data;
   },

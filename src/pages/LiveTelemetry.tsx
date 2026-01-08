@@ -261,7 +261,7 @@ export function LiveTelemetry() {
           <h2 className="text-xl font-semibold text-cyan-400">Sensor Charts</h2>
           <div className="flex items-center gap-3">
             <Select value={timeWindow} onValueChange={handleTimeWindowChange}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[180px] h-8 rounded-md text-xs px-3 text-white border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground">
                 <SelectValue placeholder="Time Window" />
               </SelectTrigger>
               <SelectContent>

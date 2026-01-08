@@ -82,7 +82,7 @@ export function ViewSchemaModal({ open, onOpenChange, schema }: ViewSchemaModalP
                     style={{ backgroundColor: field.color }}
                   />
                   <div className="flex-1">
-                    <div className="text-sm font-medium">{field.name}</div>
+                    <div className="text-sm font-medium text-foreground">{field.name}</div>
                     <div className="text-xs text-muted-foreground">
                       {field.unit} • Group {field.captureGroup}
                     </div>

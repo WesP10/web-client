@@ -5,7 +5,7 @@ import { useTelemetryStore } from '@/stores/telemetryStore';
 import { useHubStore } from '@/stores/hubStore';
 import { webSocketService } from '@/services/websocket';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Layers, Activity, LogOut } from 'lucide-react';
+import { LayoutDashboard, Layers, Activity, LogOut, Zap } from 'lucide-react';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -19,6 +19,7 @@ export function MainLayout({ children }: MainLayoutProps) {
     { name: 'Hub Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Device Manager', href: '/devices', icon: Layers },
     { name: 'Live Telemetry', href: '/telemetry', icon: Activity },
+    { name: 'Arduino Flash', href: '/flash', icon: Zap },
   ];
 
   const isActive = (path: string) => {

@@ -49,6 +49,17 @@
 
 html {
   overflow-x: hidden;
+  overflow-y: auto;
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+html::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 body {
@@ -56,6 +67,26 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  overflow-y: auto !important;
+  padding-right: 0 !important;
+  margin-right: 0 !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Prevent Radix from adding padding when dropdowns open */
+body[style*="padding-right"],
+html[style*="padding-right"],
+body[data-scroll-locked],
+html[data-scroll-locked] {
+  padding-right: 0 !important;
+  margin-right: 0 !important;
 }
 
 /* Improve text selection */
@@ -97,4 +128,49 @@ body {
 * {
   scrollbar-width: thin;
   scrollbar-color: oklch(40% 0.1 250) oklch(15% 0.01 250);
+}
+
+/* Hide scrollbar while preserving scrollability */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;      /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;              /* Chrome, Safari and Opera */
+}
+
+/* KILL ALL SELECT DROPDOWN SCROLLBARS */
+[data-radix-select-content],
+[data-radix-select-viewport] {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+[data-radix-select-content]::-webkit-scrollbar,
+[data-radix-select-viewport]::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+[data-radix-select-content]::-webkit-scrollbar-track,
+[data-radix-select-viewport]::-webkit-scrollbar-track {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+[data-radix-select-content]::-webkit-scrollbar-thumb,
+[data-radix-select-viewport]::-webkit-scrollbar-thumb {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+[data-radix-select-content]::-webkit-scrollbar-corner,
+[data-radix-select-viewport]::-webkit-scrollbar-corner {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }

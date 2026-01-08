@@ -5,6 +5,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Dashboard } from '@/pages/Dashboard';
 import { DeviceManager } from '@/pages/DeviceManager';
 import { LiveTelemetry } from '@/pages/LiveTelemetry';
+import { ArduinoFlash } from '@/pages/ArduinoFlash';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/devices" element={<DeviceManager />} />
                   <Route path="/telemetry" element={<LiveTelemetry />} />
+                  <Route path="/flash" element={<ArduinoFlash />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </MainLayout>

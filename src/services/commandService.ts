@@ -16,7 +16,8 @@ export interface SerialWriteCommandParams {
 }
 
 export interface FlashCommandParams {
-  hexFileContent: string;
+  firmwareData: string;
+  boardFqbn?: string;
   priority?: number;
 }
 
@@ -116,8 +117,9 @@ class CommandService {
           response = await hubsApi.sendFlashCommand(
             hubId,
             portId,
-            (params as FlashCommandParams).hexFileContent,
-            (params as FlashCommandParams).priority
+            (params as FlashCommandParams).firmwareData,
+            (params as FlashCommandParams).priority,
+            (params as FlashCommandParams).boardFqbn
           );
           break;
 
@@ -223,7 +225,8 @@ class CommandService {
   async flash(
     hubId: string,
     portId: string,
-    hexFileContent: string,
+    firmwareData: string,
+    boardFqbn?: string,
     priority?: number,
     options?: { showSuccessToast?: boolean; showErrorToast?: boolean }
   ): Promise<CommandResult> {
@@ -231,7 +234,7 @@ class CommandService {
       hubId,
       portId,
       commandType: 'flash',
-      params: { hexFileContent, priority },
+      params: { firmwareData, boardFqbn, priority },
       ...options,
     });
   }

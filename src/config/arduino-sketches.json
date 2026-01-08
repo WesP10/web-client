@@ -1,0 +1,22 @@
+{
+  "presets": [
+    {
+      "id": "blink",
+      "name": "Blink LED",
+      "description": "Simple LED blink sketch",
+      "content": "Lw8gQmxpbmsgZm9yIDEgc2Vjb25kLCB0aGVuIG9mZiBmb3IgMSBzZWNvbmQsIHJlcGVhdC4KSW50IExFRFBpbiA9IDE0OyAvLyBEMyBpcyBwaW4gMTQgb24gQXJkdWlubyBVbm8KCnZvaWQgc2V0dXAoKSB7CiAgcGluTW9kZShMRURQaW4sIE9VVFBVVCk7CiAgU2VyaWFsLmJlZ2luKDk2MDApOwp9CgovLyB0aGUgbG9vcCByb3V0aW5lIHJ1bnMgb3ZlciBhbmQgb3ZlciBhZ2FpbiBmb3JldmVyOgp2b2lkIGxvb3AoKSB7CiAgZGlnaXRhbFdyaXRlKExFRFBpbiwgSElHSCk7IC8vIHR1cm4gdGhlIExFRCBvbgogIGRlbGF5KDEwMDApOyAgICAgICAgICAgICAgICAvLyB3YWl0IGZvciBhIHNlY29uZAogIGRpZ2l0YWxXcml0ZShMRURQaW4sIExPVyk7ICAvLyB0dXJuIHRoZSBMRUQgb2ZmCiAgZGVsYXkoMTAwMCk7ICAgICAgICAgICAgICAgIC8vIHdhaXQgZm9yIGEgc2Vjb25kCn0K"
+    },
+    {
+      "id": "analog_read",
+      "name": "Analog Read",
+      "description": "Read analog values from potentiometer",
+      "content": "aW50IHNlbnNvclBpbiA9IEEwOyAvLyBBbmFsb2cgaW5wdXQgcGluIEEwCgp2b2lkIHNldHVwKCkgewogIFNlcmlhbC5iZWdpbig5NjAwKTsKfQoKdm9pZCBsb29wKCkgewogIGludCBzZW5zb3JWYWx1ZSA9IGFuYWxvZ1JlYWQoc2Vuc29yUGluKTsKICBTZXJpYWwucHJpbnQoIlNlbnNvciB2YWx1ZTogIik7CiAgU2VyaWFsLnByaW50bG4oc2Vuc29yVmFsdWUpOwogIGRlbGF5KDUwMCk7Cn0K"
+    },
+    {
+      "id": "serial_echo",
+      "name": "Serial Echo",
+      "description": "Echo data received on serial port",
+      "content": "aW50IGluY29taW5nQnl0ZSA9IDA7Cgp2b2lkIHNldHVwKCkgewogIFNlcmlhbC5iZWdpbig5NjAwKTsKICBTZXJpYWwucHJpbnRsbigiU2VyaWFsIEVjaG8gU3RhcnRlZCIpOwp9Cgp2b2lkIGxvb3AoKSB7CiAgaWYgKFNlcmlhbC5hdmFpbGFibGUoKSA+IDApIHsKICAgIGluY29taW5nQnl0ZSA9IFNlcmlhbC5yZWFkKCk7CiAgICBTZXJpYWwud3JpdGUoaW5jb21pbmdCeXRlKTsKICB9Cn0K"
+    }
+  ]
+}
