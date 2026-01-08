@@ -1,23 +1,98 @@
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { CommandButton } from '@/components/ui/CommandButton';
 import { Badge } from '@/components/ui/badge';
-import { Construction, Terminal as TerminalIcon, FileCode, LineChart, Send } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ChevronDown, ChevronRight, Send, Plus, Terminal as TerminalIcon, Clock } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { commandService } from '@/services/commandService';
-import type { TimeWindow } from '@/types';
+import type { TimeWindow, SensorMapping, CustomTimeRange } from '@/types';
 import { useHubStore } from '@/stores/hubStore';
 import { useTelemetryStore } from '@/stores/telemetryStore';
+import { ChartSchemaModal } from '@/components/ChartSchemaModal';
+import { DeviceChart } from '@/components/DeviceChart';
+import { saveCustomSchema } from '@/lib/customSchemas';
+import { format } from 'date-fns';
 
 export function LiveTelemetry() {
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('1h');
+  const [customTimeRange, setCustomTimeRange] = useState<CustomTimeRange | null>(null);
+  const [showCustomTimeDialog, setShowCustomTimeDialog] = useState(false);
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customStartTime, setCustomStartTime] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [customEndTime, setCustomEndTime] = useState('');
   const [serialInputs, setSerialInputs] = useState<Map<string, string>>(new Map());
+  const [expandedTerminals, setExpandedTerminals] = useState<Set<string>>(new Set());
+  const [showSchemaModal, setShowSchemaModal] = useState(false);
+  const [chartOrder, setChartOrder] = useState<string[]>([]);
 
   const { activeSubscriptions } = useHubStore();
-  const { devices: telemetryDevices } = useTelemetryStore();
+  const { devices: telemetryDevices, getChartData } = useTelemetryStore();
+
+  // Get devices with chart data
+  const devicesWithCharts = activeSubscriptions
+    .map(sub => {
+      const key = `${sub.hubId}:${sub.portId}`;
+      const chartData = timeWindow === 'custom' && customTimeRange
+        ? getChartData(sub.hubId, sub.portId, '1h') // We'll filter by custom range in the component
+        : getChartData(sub.hubId, sub.portId, timeWindow);
+      const deviceData = telemetryDevices.get(key);
+      return { sub, chartData, deviceData, key };
+    })
+    .filter(({ chartData }) => chartData.length > 0);
+
+  // Initialize chart order when devices change
+  useEffect(() => {
+    const newKeys = devicesWithCharts.map(d => d.key);
+    setChartOrder(prev => {
+      const existingKeys = prev.filter(k => newKeys.includes(k));
+      const missingKeys = newKeys.filter(k => !prev.includes(k));
+      return [...existingKeys, ...missingKeys];
+    });
+  }, [devicesWithCharts.length]);
+
+  const applyCustomTimeRange = () => {
+    if (!customStartDate || !customStartTime || !customEndDate || !customEndTime) {
+      return;
+    }
+    
+    const start = new Date(`${customStartDate}T${customStartTime}`);
+    const end = new Date(`${customEndDate}T${customEndTime}`);
+    
+    if (start >= end) {
+      alert('Start time must be before end time');
+      return;
+    }
+    
+    setCustomTimeRange({ start, end });
+    setTimeWindow('custom');
+    setShowCustomTimeDialog(false);
+  };
+
+  const handleTimeWindowChange = (value: string) => {
+    if (value === 'custom') {
+      setShowCustomTimeDialog(true);
+    } else {
+      setTimeWindow(value as TimeWindow);
+      setCustomTimeRange(null);
+    }
+  };
+
+  const onDragEnd = (result: any) => {
+    if (!result.destination) return;
+    
+    const items = Array.from(chartOrder);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    
+    setChartOrder(items);
+  };
 
   const handleSerialInput = (key: string, value: string) => {
     setSerialInputs(new Map(serialInputs).set(key, value));
@@ -33,6 +108,21 @@ export function LiveTelemetry() {
     setSerialInputs(new Map(serialInputs).set(key, ''));
   };
 
+  const toggleTerminal = (key: string) => {
+    const newExpanded = new Set(expandedTerminals);
+    if (newExpanded.has(key)) {
+      newExpanded.delete(key);
+    } else {
+      newExpanded.add(key);
+    }
+    setExpandedTerminals(newExpanded);
+  };
+
+  const handleSaveSchema = (schema: SensorMapping) => {
+    saveCustomSchema(schema);
+    // Toast notification could be added here
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
@@ -42,111 +132,80 @@ export function LiveTelemetry() {
             Real-time sensor data from subscribed devices
           </p>
         </div>
-        <Select value={timeWindow} onValueChange={(v) => setTimeWindow(v as TimeWindow)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Time Window" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="5m">Last 5 Minutes</SelectItem>
-            <SelectItem value="15m">Last 15 Minutes</SelectItem>
-            <SelectItem value="30m">Last 30 Minutes</SelectItem>
-            <SelectItem value="1h">Last 1 Hour</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
-      <Tabs defaultValue="charts" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="charts" className="gap-2">
-            <LineChart className="h-4 w-4" />
-            Charts
-          </TabsTrigger>
-          <TabsTrigger value="terminal" className="gap-2">
-            <TerminalIcon className="h-4 w-4" />
-            Terminal
-          </TabsTrigger>
-          <TabsTrigger value="hex" className="gap-2">
-            <FileCode className="h-4 w-4" />
-            Raw Hex
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="charts" className="space-y-4">
+      {/* Serial Terminals Section */}
+      <div className="space-y-3">
+        <h2 className="text-xl font-semibold text-cyan-400">Serial Terminals</h2>
+        {activeSubscriptions.length === 0 ? (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Construction className="h-5 w-5" />
-                Sensor Charts - Coming Soon
+                <TerminalIcon className="h-5 w-5" />
+                Serial Terminals
               </CardTitle>
-              <CardDescription>
-                Real-time line charts for numeric sensor data
-              </CardDescription>
             </CardHeader>
-            <CardContent className="py-12">
-              <div className="text-center text-muted-foreground">
-                <p>Chart features:</p>
-                <ul className="mt-4 space-y-2">
-                  <li>• Multi-line charts per sensor field</li>
-                  <li>• Automatic sensor type detection</li>
-                  <li>• 1-hour data retention with circular buffer</li>
-                  <li>• Color-coded lines with units</li>
-                  <li>• Throttled updates (250ms) for smooth rendering</li>
-                </ul>
-              </div>
+            <CardContent className="py-8">
+              <p className="text-center text-muted-foreground">
+                No active subscriptions. Subscribe to devices in Device Manager.
+              </p>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="terminal" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Construction className="h-5 w-5" />
-                Serial Terminal - Live
-              </CardTitle>
-              <CardDescription>
-                Recent telemetry from your subscribed devices
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {activeSubscriptions.length === 0 ? (
-                <div className="text-sm text-muted-foreground py-6">No active subscriptions. Subscribe to devices in Device Manager.</div>
-              ) : (
-                <div className="space-y-4">
-                  {activeSubscriptions.map((sub) => {
-                    const key = `${sub.hubId}:${sub.portId}`;
-                    const device = telemetryDevices.get(key);
-                    const lastLines = device?.rawData ? device.rawData.split('\n').slice(-5).join('\n') : 'No data yet';
-                    const inputValue = serialInputs.get(key) || '';
-                    
-                    return (
-                      <Card key={key} className="p-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="font-medium">{sub.hubId} → {sub.portId}</div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs text-muted-foreground">Subscribed at {new Date(sub.subscribedAt).toLocaleTimeString()}</span>
-                              {sub.sensorType && (
-                                <Badge variant="outline" className="text-xs">
-                                  {sub.sensorName || sub.sensorType}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <CommandButton
-                              hubId={sub.hubId}
-                              portId={sub.portId}
-                              commandType="restart"
-                              variant="outline"
-                              size="sm"
-                            />
-                          </div>
+        ) : (
+          <div className="space-y-2">
+            {activeSubscriptions.map((sub) => {
+              const key = `${sub.hubId}:${sub.portId}`;
+              const device = telemetryDevices.get(key);
+              const isExpanded = expandedTerminals.has(key);
+              const lastLines = device?.rawData 
+                ? device.rawData.split('\n').slice(-20).join('\n') 
+                : 'No data yet';
+              const inputValue = serialInputs.get(key) || '';
+              
+              return (
+                <Collapsible
+                  key={key}
+                  open={isExpanded}
+                  onOpenChange={() => toggleTerminal(key)}
+                >
+                  <Card>
+                    <CardHeader className="relative">
+                      <CollapsibleTrigger className="w-full cursor-pointer hover:bg-accent/50 transition-colors rounded-md p-2 -mx-2">
+                        <div className="flex items-center gap-3">
+                          {isExpanded ? (
+                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                          )}
+                          <CardTitle className="text-base">
+                            {sub.hubId} → Port {sub.portId}
+                          </CardTitle>
+                          {sub.sensorType && (
+                            <Badge variant="outline" className="text-xs">
+                              {sub.sensorName || sub.sensorType}
+                            </Badge>
+                          )}
                         </div>
-                        <pre className="mt-3 bg-black text-white p-3 rounded text-xs whitespace-pre-wrap">{lastLines}</pre>
+                      </CollapsibleTrigger>
+                      <div className="absolute top-2 right-2">
+                        <CommandButton
+                          hubId={sub.hubId}
+                          portId={sub.portId}
+                          commandType="restart"
+                          variant="outline"
+                          size="sm"
+                        />
+                      </div>
+                    </CardHeader>
+                    
+                    <CollapsibleContent>
+                      <CardContent className="space-y-3">
+                        <pre className="bg-black text-white p-3 rounded text-xs whitespace-pre-wrap font-mono max-h-64 overflow-y-auto">
+                          {lastLines}
+                        </pre>
                         
                         {/* Serial Write Input */}
-                        <div className="mt-3 flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                           <Input
                             type="text"
                             placeholder="Type data to send..."
@@ -168,40 +227,157 @@ export function LiveTelemetry() {
                             <Send className="h-4 w-4" />
                           </Button>
                         </div>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                      </CardContent>
+                    </CollapsibleContent>
+                  </Card>
+                </Collapsible>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-        <TabsContent value="hex" className="space-y-4">
+      {/* Charts Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-cyan-400">Sensor Charts</h2>
+          <div className="flex items-center gap-3">
+            <Select value={timeWindow} onValueChange={handleTimeWindowChange}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Time Window" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5m">Last 5 Minutes</SelectItem>
+                <SelectItem value="15m">Last 15 Minutes</SelectItem>
+                <SelectItem value="30m">Last 30 Minutes</SelectItem>
+                <SelectItem value="1h">Last 1 Hour</SelectItem>
+                <SelectItem value="custom">Custom Range...</SelectItem>
+              </SelectContent>
+            </Select>
+            {timeWindow === 'custom' && customTimeRange && (
+              <Button variant="outline" size="sm" onClick={() => setShowCustomTimeDialog(true)}>
+                <Clock className="h-4 w-4 mr-2" />
+                {format(customTimeRange.start, 'MMM d HH:mm')} - {format(customTimeRange.end, 'HH:mm')}
+              </Button>
+            )}
+            <Button onClick={() => setShowSchemaModal(true)} variant="outline" size="sm" className="text-white">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Custom Schema
+            </Button>
+          </div>
+        </div>
+
+        {devicesWithCharts.length === 0 ? (
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Construction className="h-5 w-5" />
-                Hex Dump - Coming Soon
-              </CardTitle>
-              <CardDescription>
-                Raw binary data in hex format
-              </CardDescription>
-            </CardHeader>
             <CardContent className="py-12">
-              <div className="text-center text-muted-foreground">
-                <p>Hex dump features:</p>
-                <ul className="mt-4 space-y-2">
-                  <li>• 16 bytes per line</li>
-                  <li>• Byte offset column</li>
-                  <li>• ASCII preview column</li>
-                  <li>• Data size statistics</li>
-                </ul>
+              <div className="text-center text-muted-foreground space-y-2">
+                <p className="text-lg font-medium">Waiting for sensor data...</p>
+                <p className="text-sm">
+                  Charts will automatically appear when sensor headers are detected.
+                </p>
+                <p className="text-xs mt-4">
+                  Click "Add Custom Schema" above to define custom sensor formats.
+                </p>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        ) : (
+          <DragDropContext onDragEnd={onDragEnd}>
+            <Droppable droppableId="charts">
+              {(provided) => (
+                <div
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                  className="space-y-4"
+                >
+                  {chartOrder
+                    .map(key => devicesWithCharts.find(d => d.key === key))
+                    .filter(Boolean)
+                    .map((item, index) => {
+                      const { deviceData, key } = item!;
+                      if (!deviceData?.chartData) return null;
+                      
+                      return (
+                        <Draggable key={key} draggableId={key} index={index}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              style={{
+                                ...provided.draggableProps.style,
+                                opacity: snapshot.isDragging ? 0.8 : 1,
+                              }}
+                            >
+                              <DeviceChart
+                                data={deviceData.chartData}
+                                dragHandleProps={provided.dragHandleProps}
+                              />
+                            </div>
+                          )}
+                        </Draggable>
+                      );
+                    })}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
+        )}
+      </div>
+
+      {/* Custom Time Range Dialog */}
+      <Dialog open={showCustomTimeDialog} onOpenChange={setShowCustomTimeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Custom Time Range</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Start Date & Time</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="flex-1"
+                />
+                <Input
+                  type="time"
+                  value={customStartTime}
+                  onChange={(e) => setCustomStartTime(e.target.value)}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>End Date & Time</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="flex-1"
+                />
+                <Input
+                  type="time"
+                  value={customEndTime}
+                  onChange={(e) => setCustomEndTime(e.target.value)}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+            <Button onClick={applyCustomTimeRange} className="w-full">
+              Apply Time Range
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Chart Schema Modal */}
+      <ChartSchemaModal
+        open={showSchemaModal}
+        onOpenChange={setShowSchemaModal}
+        onSave={handleSaveSchema}
+      />
     </div>
   );
 }

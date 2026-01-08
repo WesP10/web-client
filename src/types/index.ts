@@ -189,12 +189,17 @@ export interface DeviceChartData {
 }
 
 // Time window types
-export type TimeWindow = '5m' | '15m' | '30m' | '1h';
+export type TimeWindow = '5m' | '15m' | '30m' | '1h' | 'custom';
 
 export interface TimeWindowConfig {
   value: TimeWindow;
   label: string;
   milliseconds: number;
+}
+
+export interface CustomTimeRange {
+  start: Date;
+  end: Date;
 }
 
 // Task types
