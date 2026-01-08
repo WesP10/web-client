@@ -8,13 +8,14 @@ import { CommandButton } from '@/components/ui/CommandButton';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ChevronDown, ChevronRight, Send, Plus, Terminal as TerminalIcon, Clock } from 'lucide-react';
+import { ChevronDown, ChevronRight, Send, Terminal as TerminalIcon, Clock } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { commandService } from '@/services/commandService';
 import type { TimeWindow, SensorMapping, CustomTimeRange, DeviceChartData } from '@/types';
 import { useHubStore } from '@/stores/hubStore';
 import { useTelemetryStore } from '@/stores/telemetryStore';
 import { ChartSchemaModal } from '@/components/ChartSchemaModal';
+import { SchemaDropdown } from '@/components/SchemaDropdown';
 import { DeviceChart } from '@/components/DeviceChart';
 import { saveCustomSchema } from '@/lib/customSchemas';
 import { format } from 'date-fns';
@@ -277,10 +278,7 @@ export function LiveTelemetry() {
                 {format(customTimeRange.start, 'MMM d HH:mm')} - {format(customTimeRange.end, 'HH:mm')}
               </Button>
             )}
-            <Button onClick={() => setShowSchemaModal(true)} variant="outline" size="sm" className="text-white">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Custom Schema
-            </Button>
+            <SchemaDropdown onAddNew={() => setShowSchemaModal(true)} />
           </div>
         </div>
 

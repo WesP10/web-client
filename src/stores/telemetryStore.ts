@@ -50,7 +50,7 @@ function getTimeWindowMilliseconds(window: TimeWindow): number {
     '30m': 30 * 60 * 1000,
     '1h': 60 * 60 * 1000,
   };
-  return windows[window];
+  return windows[window as keyof typeof windows] ?? ONE_HOUR_MS;
 }
 
 function pruneOldDataPoints(

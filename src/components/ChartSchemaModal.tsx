@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, X } from 'lucide-react';
+import { generateArduinoPrintStatement, generateRegexPattern } from '@/lib/customSchemas';
 import type { SensorMapping, SensorField } from '@/types';
 
 interface ChartSchemaModalProps {
@@ -18,7 +19,6 @@ export function ChartSchemaModal({ open, onOpenChange, onSave }: ChartSchemaModa
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [format, setFormat] = useState<'key-value' | 'csv' | 'json'>('key-value');
-  const [pattern, setPattern] = useState('');
   const [fields, setFields] = useState<SensorField[]>([]);
 
   const addField = () => {
@@ -36,13 +36,15 @@ export function ChartSchemaModal({ open, onOpenChange, onSave }: ChartSchemaModa
     setFields(fields.map((field, i) => (i === index ? { ...field, ...updates } : field)));
   };
 
+  const generatedPattern = generateRegexPattern(format, fields);
+
   const handleSave = () => {
     const schema: SensorMapping = {
       id: `custom-${Date.now()}`,
       name,
       description,
       format,
-      pattern,
+      pattern: generatedPattern,
       fields,
     };
     onSave(schema);
@@ -51,12 +53,11 @@ export function ChartSchemaModal({ open, onOpenChange, onSave }: ChartSchemaModa
     setName('');
     setDescription('');
     setFormat('key-value');
-    setPattern('');
     setFields([]);
     onOpenChange(false);
   };
 
-  const isValid = name.trim() && pattern.trim() && fields.length > 0 && fields.every(f => f.name.trim());
+  const isValid = name.trim() && generatedPattern.trim() && fields.length > 0 && fields.every(f => f.name.trim());
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -103,20 +104,6 @@ export function ChartSchemaModal({ open, onOpenChange, onSave }: ChartSchemaModa
                 <SelectItem value="json">JSON</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="pattern" className="text-cyan-400">Pattern / Header</Label>
-            <Textarea
-              id="pattern"
-              placeholder="e.g., TEMP|HUMIDITY for key-value format"
-              value={pattern}
-              onChange={(e) => setPattern(e.target.value)}
-              className="font-mono text-xs text-foreground"
-            />
-            <p className="text-xs text-muted-foreground">
-              Enter the header pattern or regular expression to match this sensor type
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -178,13 +165,43 @@ export function ChartSchemaModal({ open, onOpenChange, onSave }: ChartSchemaModa
               </div>
             )}
           </div>
+
+          <div className="space-y-2 pt-2">
+            <Label htmlFor="regex-pattern" className="text-cyan-400">Generated Regex Pattern</Label>
+            <Textarea
+              id="regex-pattern"
+              readOnly
+              value={generatedPattern || '(pattern will appear when you add fields)'}
+              className="font-mono text-xs text-foreground bg-muted/50 [user-select:text] [pointer-events:auto]"
+              rows={2}
+              style={{ WebkitUserDrag: 'none' } as React.CSSProperties}
+            />
+            <p className="text-xs text-muted-foreground">
+              This regex is automatically generated from your format and fields. You can copy it if needed.
+            </p>
+          </div>
+
+          <div className="space-y-2 pt-2">
+            <Label htmlFor="arduino-code" className="text-cyan-400">Arduino Print Statement</Label>
+            <Textarea
+              id="arduino-code"
+              readOnly
+              value={generateArduinoPrintStatement(format, generatedPattern, fields)}
+              className="font-mono text-xs text-foreground bg-muted/50 [user-select:text] [pointer-events:auto]"
+              rows={3}
+              style={{ WebkitUserDrag: 'none' } as React.CSSProperties}
+            />
+            <p className="text-xs text-muted-foreground">
+              Use this as a reference for your Arduino sketch's Serial.print() statements. Text can be selected and copied.
+            </p>
+          </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} className="text-foreground">
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!isValid} className="text-white">
+          <Button onClick={handleSave} disabled={!isValid}>
             Save Schema
           </Button>
         </DialogFooter>
