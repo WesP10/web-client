@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ChevronDown, ChevronRight, Send, Plus, Terminal as TerminalIcon, Clock } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { commandService } from '@/services/commandService';
-import type { TimeWindow, SensorMapping, CustomTimeRange } from '@/types';
+import type { TimeWindow, SensorMapping, CustomTimeRange, DeviceChartData } from '@/types';
 import { useHubStore } from '@/stores/hubStore';
 import { useTelemetryStore } from '@/stores/telemetryStore';
 import { ChartSchemaModal } from '@/components/ChartSchemaModal';
@@ -39,13 +39,30 @@ export function LiveTelemetry() {
   const devicesWithCharts = activeSubscriptions
     .map(sub => {
       const key = `${sub.hubId}:${sub.portId}`;
-      const chartData = timeWindow === 'custom' && customTimeRange
-        ? getChartData(sub.hubId, sub.portId, '1h') // We'll filter by custom range in the component
+
+      // Fetch raw fields from store (getChartData already applies a time window filter for standard windows)
+      const rawFields = timeWindow === 'custom' && customTimeRange
+        ? getChartData(sub.hubId, sub.portId, '1h')
         : getChartData(sub.hubId, sub.portId, timeWindow);
+
+      // If custom range selected, further filter the returned points to within start..end
+      const filteredFields = (timeWindow === 'custom' && customTimeRange)
+        ? rawFields.map(f => ({
+            ...f,
+            data: f.data.filter(p => p.timestamp >= customTimeRange.start.getTime() && p.timestamp <= customTimeRange.end.getTime())
+          }))
+        : rawFields;
+
       const deviceData = telemetryDevices.get(key);
-      return { sub, chartData, deviceData, key };
+
+      // Build a DeviceChartData using the device's meta plus filtered fields
+      const deviceChartData: DeviceChartData | null = deviceData && deviceData.chartData
+        ? { ...deviceData.chartData, fields: filteredFields }
+        : null;
+
+      return { sub, chartData: deviceChartData, key };
     })
-    .filter(({ chartData }) => chartData.length > 0);
+    .filter(({ chartData }) => chartData && chartData.fields.length > 0);
 
   // Initialize chart order when devices change
   useEffect(() => {
@@ -294,9 +311,9 @@ export function LiveTelemetry() {
                     .map(key => devicesWithCharts.find(d => d.key === key))
                     .filter(Boolean)
                     .map((item, index) => {
-                      const { deviceData, key } = item!;
-                      if (!deviceData?.chartData) return null;
-                      
+                      const { chartData, key } = item!;
+                      if (!chartData) return null;
+
                       return (
                         <Draggable key={key} draggableId={key} index={index}>
                           {(provided, snapshot) => (
@@ -309,7 +326,7 @@ export function LiveTelemetry() {
                               }}
                             >
                               <DeviceChart
-                                data={deviceData.chartData}
+                                data={chartData}
                                 dragHandleProps={provided.dragHandleProps}
                               />
                             </div>
