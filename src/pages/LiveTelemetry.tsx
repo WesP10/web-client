@@ -255,7 +255,7 @@ export function LiveTelemetry() {
               </SelectContent>
             </Select>
             {timeWindow === 'custom' && customTimeRange && (
-              <Button variant="outline" size="sm" onClick={() => setShowCustomTimeDialog(true)}>
+              <Button variant="outline" size="sm" onClick={() => setShowCustomTimeDialog(true)} className="text-white">
                 <Clock className="h-4 w-4 mr-2" />
                 {format(customTimeRange.start, 'MMM d HH:mm')} - {format(customTimeRange.end, 'HH:mm')}
               </Button>
@@ -329,40 +329,40 @@ export function LiveTelemetry() {
       <Dialog open={showCustomTimeDialog} onOpenChange={setShowCustomTimeDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Custom Time Range</DialogTitle>
+            <DialogTitle className="text-foreground">Custom Time Range</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Start Date & Time</Label>
+              <Label className="text-foreground">Start Date & Time</Label>
               <div className="flex gap-2">
                 <Input
                   type="date"
                   value={customStartDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="flex-1"
+                  className="flex-1 text-foreground [&::-webkit-calendar-picker-indicator]:invert"
                 />
                 <Input
                   type="time"
                   value={customStartTime}
                   onChange={(e) => setCustomStartTime(e.target.value)}
-                  className="flex-1"
+                  className="flex-1 text-foreground [&::-webkit-calendar-picker-indicator]:invert"
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label>End Date & Time</Label>
+              <Label className="text-foreground">End Date & Time</Label>
               <div className="flex gap-2">
                 <Input
                   type="date"
                   value={customEndDate}
                   onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="flex-1"
+                  className="flex-1 text-foreground [&::-webkit-calendar-picker-indicator]:invert"
                 />
                 <Input
                   type="time"
                   value={customEndTime}
                   onChange={(e) => setCustomEndTime(e.target.value)}
-                  className="flex-1"
+                  className="flex-1 text-foreground [&::-webkit-calendar-picker-indicator]:invert"
                 />
               </div>
             </div>

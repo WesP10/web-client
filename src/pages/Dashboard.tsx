@@ -37,7 +37,7 @@ export function Dashboard() {
           placeholder="Search hubs..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9"
+          className="pl-9 text-foreground"
         />
       </div>
 

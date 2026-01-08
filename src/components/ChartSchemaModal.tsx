@@ -76,6 +76,7 @@ export function ChartSchemaModal({ open, onOpenChange, onSave }: ChartSchemaModa
               placeholder="e.g., DHT22 Sensor"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              className="text-foreground"
             />
           </div>
 
@@ -86,6 +87,7 @@ export function ChartSchemaModal({ open, onOpenChange, onSave }: ChartSchemaModa
               placeholder="e.g., Temperature and humidity sensor"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              className="text-foreground"
             />
           </div>
 
@@ -110,7 +112,7 @@ export function ChartSchemaModal({ open, onOpenChange, onSave }: ChartSchemaModa
               placeholder="e.g., TEMP|HUMIDITY for key-value format"
               value={pattern}
               onChange={(e) => setPattern(e.target.value)}
-              className="font-mono text-xs"
+              className="font-mono text-xs text-foreground"
             />
             <p className="text-xs text-muted-foreground">
               Enter the header pattern or regular expression to match this sensor type
@@ -137,21 +139,21 @@ export function ChartSchemaModal({ open, onOpenChange, onSave }: ChartSchemaModa
                         placeholder="Field name (e.g., temperature)"
                         value={field.name}
                         onChange={(e) => updateField(index, { name: e.target.value })}
-                        className="text-sm"
+                        className="text-sm text-foreground"
                       />
                       <div className="flex gap-2">
                         <Input
                           placeholder="Unit (e.g., °C)"
                           value={field.unit}
                           onChange={(e) => updateField(index, { unit: e.target.value })}
-                          className="text-sm flex-1"
+                          className="text-sm flex-1 text-foreground"
                         />
                         <Input
                           type="number"
                           placeholder="Group #"
                           value={field.captureGroup}
                           onChange={(e) => updateField(index, { captureGroup: parseInt(e.target.value) || 1 })}
-                          className="w-20 text-sm"
+                          className="w-20 text-sm text-foreground [&::-webkit-inner-spin-button]:opacity-100 [&::-webkit-outer-spin-button]:opacity-100"
                           min="1"
                         />
                         <Input
@@ -167,6 +169,7 @@ export function ChartSchemaModal({ open, onOpenChange, onSave }: ChartSchemaModa
                       variant="ghost"
                       size="icon"
                       onClick={() => removeField(index)}
+                      className="text-foreground hover:text-foreground"
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -178,7 +181,7 @@ export function ChartSchemaModal({ open, onOpenChange, onSave }: ChartSchemaModa
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="text-foreground">
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={!isValid} className="text-white">
