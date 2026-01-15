@@ -108,12 +108,24 @@ export interface TaskStatusMessage {
   timestamp: string;
 }
 
+export interface PingMessage {
+  type: 'ping';
+  timestamp: string;
+}
+
+export interface PongMessage {
+  type: 'pong';
+  timestamp: string;
+}
+
 export type WebSocketMessage =
   | TelemetryMessage
   | HealthMessage
   | DeviceEventMessage
   | SubscriptionStatusMessage
-  | TaskStatusMessage;
+  | TaskStatusMessage
+  | PingMessage
+  | PongMessage;
 
 // Subscription types
 export interface DeviceSubscription {

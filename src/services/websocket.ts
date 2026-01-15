@@ -21,6 +21,12 @@ class WebSocketService {
   // Queue subscriptions requested while the socket is not yet open
   private pendingSubscriptions: DeviceSubscription[] = [];
 
+  // Heartbeat monitoring to detect dead connections
+  private lastMessageTime: number = 0;
+  private heartbeatInterval: number | null = null;
+  private readonly HEARTBEAT_CHECK_INTERVAL = 10000; // Check every 10 seconds
+  private readonly MAX_MESSAGE_AGE = 65000; // Reconnect if no message for 65 seconds (2x ping interval + buffer)
+
   /**
    * Connect to the WebSocket server
    */
@@ -42,6 +48,10 @@ class WebSocketService {
       this.ws.onopen = () => {
         console.log('WebSocket connected');
         this.reconnectAttempts = 0;
+        this.lastMessageTime = Date.now();
+
+        // Start heartbeat monitoring
+        this.startHeartbeatMonitoring();
 
         // Flush any pending subscriptions that were queued while connecting
         if (this.pendingSubscriptions.length > 0) {
@@ -72,6 +82,7 @@ class WebSocketService {
       this.ws.onclose = (event: CloseEvent) => {
         console.log('WebSocket closed:', event.code, event.reason);
         this.ws = null;
+        this.stopHeartbeatMonitoring();
 
         if (!this.isIntentionallyClosed) {
           this.scheduleReconnect();
@@ -93,6 +104,8 @@ class WebSocketService {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;
     }
+
+    this.stopHeartbeatMonitoring();
 
     if (this.ws) {
       this.ws.close();
@@ -216,6 +229,20 @@ class WebSocketService {
    * Handle incoming WebSocket messages
    */
   private handleMessage(message: WebSocketMessage): void {
+    // Update last message time for heartbeat monitoring
+    this.lastMessageTime = Date.now();
+
+    // Handle ping messages by responding with pong
+    if (message.type === 'ping') {
+      const pongMessage = {
+        type: 'pong',
+        timestamp: new Date().toISOString(),
+      };
+      this.send(pongMessage);
+      console.log('Received ping, sent pong');
+      return; // Don't pass ping messages to handlers
+    }
+
     console.log('Received WebSocket message:', message);
     this.messageHandlers.forEach((handler) => {
       try {
@@ -253,6 +280,47 @@ class WebSocketService {
         this.connect(this.token);
       }
     }, delay);
+  }
+
+  /**
+   * Start heartbeat monitoring to detect dead connections
+   */
+  private startHeartbeatMonitoring(): void {
+    this.stopHeartbeatMonitoring(); // Clear any existing interval
+    
+    this.heartbeatInterval = window.setInterval(() => {
+      const now = Date.now();
+      const timeSinceLastMessage = now - this.lastMessageTime;
+      
+      if (timeSinceLastMessage > this.MAX_MESSAGE_AGE) {
+        console.warn(
+          `No messages received for ${Math.round(timeSinceLastMessage / 1000)}s. ` +
+          'Connection may be dead. Forcing reconnect...'
+        );
+        
+        // Force close and reconnect
+        if (this.ws) {
+          this.ws.close();
+          this.ws = null;
+        }
+        
+        this.stopHeartbeatMonitoring();
+        
+        if (!this.isIntentionallyClosed && this.token) {
+          this.scheduleReconnect();
+        }
+      }
+    }, this.HEARTBEAT_CHECK_INTERVAL);
+  }
+
+  /**
+   * Stop heartbeat monitoring
+   */
+  private stopHeartbeatMonitoring(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
   }
 
   /**
