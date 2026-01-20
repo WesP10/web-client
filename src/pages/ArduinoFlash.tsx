@@ -5,7 +5,7 @@ import { commandService } from '@/services/commandService';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, Upload, Play, X } from 'lucide-react';
+import { AlertCircle, Upload, Play} from 'lucide-react';
 import { EditorView, basicSetup } from 'codemirror';
 import { EditorState } from '@codemirror/state';
 import { cpp } from '@codemirror/lang-cpp';
@@ -209,15 +209,22 @@ export function ArduinoFlash() {
       return;
     }
 
+    // Determine board FQBN: user selection wins; otherwise infer from port metadata
+    const selectedPortInfo = ports.find((p) => p.port_id === selectedPort);
+    const inferredBoard = inferBoardFqbn(selectedPortInfo);
+    const boardFqbn = selectedBoard && selectedBoard !== 'auto' ? selectedBoard : inferredBoard;
+
+    // For .ino files, board FQBN is required for compilation
+    const isInoSource = !isProbablyIntelHex(fileContent);
+    if (isInoSource && !boardFqbn) {
+      alert('Please select a board type for compiling the Arduino sketch');
+      return;
+    }
+
     try {
       // Convert file content to base64
       const bytes = new TextEncoder().encode(fileContent);
       const base64Content = fromByteArray(bytes);
-
-      // Determine board FQBN: user selection wins; otherwise infer from port metadata
-      const selectedPortInfo = ports.find((p) => p.port_id === selectedPort);
-      const inferredBoard = inferBoardFqbn(selectedPortInfo);
-      const boardFqbn = selectedBoard && selectedBoard !== 'auto' ? selectedBoard : inferredBoard;
 
       // Initiate flash command
       await commandService.flash(
@@ -229,7 +236,7 @@ export function ArduinoFlash() {
         { showSuccessToast: false, showErrorToast: false }
       );
 
-      alert('Flash command sent successfully!');
+      alert(isInoSource ? 'Sketch will be compiled and flashed on the hub!' : 'Flash command sent successfully!');
     } catch (error: any) {
       console.error('Error starting flash:', error);
       alert(`Failed to start flash process: ${error.response?.data?.detail || 'Unknown error'}`);
@@ -270,12 +277,12 @@ export function ArduinoFlash() {
                   <Button variant="outline" className="gap-2" asChild>
                     <span>
                       <Upload className="h-4 w-4" />
-                      Upload .hex
+                      Upload File
                     </span>
                   </Button>
                   <input
                     type="file"
-                    accept=".hex"
+                    accept=".ino,.hex"
                     onChange={handleFileUpload}
                     className="hidden"
                   />
@@ -392,9 +399,9 @@ export function ArduinoFlash() {
         <div className="space-y-2 text-sm text-muted-foreground">
           <div className="font-semibold text-foreground">Tips</div>
           <ul className="list-disc list-inside space-y-1">
-            <li>Need a compiled HEX? In Arduino IDE use: Sketch → Export compiled Binary, then upload the .hex here.</li>
+            <li>Upload .ino files directly - they will be compiled on the RPI hub using Arduino CLI.</li>
+            <li>You can also upload pre-compiled .hex files for faster flashing.</li>
             <li>Flash hangs? Serial write stops working? Unplug and re-plug the board, then try again.</li>
-            <li>No script yet for auto-build? Ask your AI assistant to generate a build script for your board.</li>
           </ul>
         </div>
       </Card>
