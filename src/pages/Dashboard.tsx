@@ -7,7 +7,7 @@ import { Search, Server, Wifi, WifiOff } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 export function Dashboard() {
-  const { hubs, fetchHubs, isLoading } = useHubStore();
+  const { hubs = [], fetchHubs, isLoading } = useHubStore();
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -22,10 +22,10 @@ export function Dashboard() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-cyan-400">Hub Dashboard</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-cyan-400">Hub Dashboard</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-1">
           Monitor and manage your RPi hub connections
         </p>
       </div>
@@ -42,7 +42,7 @@ export function Dashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Hubs</CardTitle>
@@ -80,7 +80,7 @@ export function Dashboard() {
       <div className="space-y-4">
         {isLoading ? (
           <Card>
-            <CardContent className="flex items-center justify-center py-12">
+            <CardContent className="flex items-center justify-center py-8 sm:py-12">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
                 <p className="text-sm text-muted-foreground">Loading hubs...</p>
@@ -89,9 +89,9 @@ export function Dashboard() {
           </Card>
         ) : filteredHubs.length === 0 ? (
           <Card>
-            <CardContent className="flex items-center justify-center py-12">
+            <CardContent className="flex items-center justify-center py-8 sm:py-12">
               <div className="text-center">
-                <Server className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                <Server className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">
                   {searchQuery ? 'No hubs found' : 'No hubs connected'}
                 </p>
@@ -102,17 +102,17 @@ export function Dashboard() {
           filteredHubs.map((hub) => (
             <Card key={hub.hubId}>
               <CardHeader>
-                <div className="flex items-start justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-0">
                   <div className="space-y-1">
-                    <CardTitle className="flex items-center gap-2">
-                      <Server className="h-5 w-5" />
-                      {hub.hubId}
+                    <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                      <Server className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                      <span className="truncate">{hub.hubId}</span>
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-sm">
                       Version: {hub.version || 'Unknown'}
                     </CardDescription>
                   </div>
-                  <Badge variant={hub.connected ? 'success' : 'destructive'}>
+                  <Badge variant={hub.connected ? 'success' : 'destructive'} className="self-start">
                     {hub.connected ? (
                       <>
                         <Wifi className="h-3 w-3 mr-1" />
@@ -130,9 +130,9 @@ export function Dashboard() {
               <CardContent>
                 <div className="grid gap-2 text-sm">
                   {hub.connected && hub.connectedAt && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Connected:</span>
-                      <span>
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                      <span className="text-muted-foreground font-medium">Connected:</span>
+                      <span className="sm:text-right">
                         {formatDistanceToNow(new Date(hub.connectedAt), {
                           addSuffix: true,
                         })}
@@ -140,9 +140,9 @@ export function Dashboard() {
                     </div>
                   )}
                   {hub.lastSeen && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Last Seen:</span>
-                      <span>
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                      <span className="text-muted-foreground font-medium">Last Seen:</span>
+                      <span className="sm:text-right">
                         {formatDistanceToNow(new Date(hub.lastSeen), {
                           addSuffix: true,
                         })}

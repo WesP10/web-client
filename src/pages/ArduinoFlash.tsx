@@ -75,7 +75,7 @@ export function ArduinoFlash() {
   const editorRef = useRef<HTMLDivElement>(null);
   const editorViewRef = useRef<EditorView | null>(null);
 
-  const { hubs, fetchHubs } = useHubStore();
+  const { hubs = [], fetchHubs } = useHubStore();
 
   // Fetch hubs on mount
   useEffect(() => {
@@ -244,22 +244,22 @@ export function ArduinoFlash() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Arduino Firmware Flash</h1>
-        <p className="text-muted-foreground">Upload and flash Arduino sketches to your devices</p>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Arduino Firmware Flash</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">Upload and flash Arduino sketches to your devices</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 xl:gap-6">
         {/* Code Editor Panel */}
-        <div className="col-span-2 space-y-4">
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Code Editor</h2>
+        <div className="xl:col-span-2 space-y-4">
+          <Card className="p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold mb-4">Code Editor</h2>
 
             {/* File Selector */}
             <div className="mb-4 space-y-2">
               <label className="text-sm font-medium">Load Sketch</label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Select value={selectedSketch} onValueChange={handleSketchSelect}>
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder="Select a preset sketch..." />
@@ -315,8 +315,8 @@ export function ArduinoFlash() {
         {/* Control Panel */}
         <div className="space-y-4">
           {/* Hub & Port Selection */}
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Target Device</h2>
+          <Card className="p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold mb-4">Target Device</h2>
 
             <div className="space-y-4 overflow-y-auto max-h-96 pr-2 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
               {/* Hub Selector */}

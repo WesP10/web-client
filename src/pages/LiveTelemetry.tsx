@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ChevronDown, ChevronRight, Send, Terminal as TerminalIcon, Clock } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { commandService } from '@/services/commandService';
+import { format } from 'date-fns';
 import type { TimeWindow, SensorMapping, CustomTimeRange, DeviceChartData } from '@/types';
 import { useHubStore } from '@/stores/hubStore';
 import { useTelemetryStore } from '@/stores/telemetryStore';
@@ -18,7 +19,6 @@ import { ChartSchemaModal } from '@/components/ChartSchemaModal';
 import { SchemaDropdown } from '@/components/SchemaDropdown';
 import { DeviceChart } from '@/components/DeviceChart';
 import { saveCustomSchema } from '@/lib/customSchemas';
-import { format } from 'date-fns';
 
 export function LiveTelemetry() {
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('1h');
@@ -142,11 +142,11 @@ export function LiveTelemetry() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-cyan-400">Live Telemetry</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-cyan-400">Live Telemetry</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
             Real-time sensor data from subscribed devices
           </p>
         </div>
@@ -154,17 +154,17 @@ export function LiveTelemetry() {
 
       {/* Serial Terminals Section */}
       <div className="space-y-3">
-        <h2 className="text-xl font-semibold text-cyan-400">Serial Terminals</h2>
+        <h2 className="text-lg sm:text-xl font-semibold text-cyan-400">Serial Terminals</h2>
         {activeSubscriptions.length === 0 ? (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TerminalIcon className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <TerminalIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                 Serial Terminals
               </CardTitle>
             </CardHeader>
-            <CardContent className="py-8">
-              <p className="text-center text-muted-foreground">
+            <CardContent className="py-6 sm:py-8">
+              <p className="text-center text-sm sm:text-base text-muted-foreground">
                 No active subscriptions. Subscribe to devices in Device Manager.
               </p>
             </CardContent>
@@ -257,11 +257,11 @@ export function LiveTelemetry() {
 
       {/* Charts Section */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-cyan-400">Sensor Charts</h2>
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+          <h2 className="text-lg sm:text-xl font-semibold text-cyan-400">Sensor Charts</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <Select value={timeWindow} onValueChange={handleTimeWindowChange}>
-              <SelectTrigger className="w-[180px] h-8 rounded-md text-xs px-3 text-white border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground">
+              <SelectTrigger className="w-full sm:w-[180px] h-8 rounded-md text-xs px-3 text-white border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground">
                 <SelectValue placeholder="Time Window" />
               </SelectTrigger>
               <SelectContent>
@@ -273,9 +273,10 @@ export function LiveTelemetry() {
               </SelectContent>
             </Select>
             {timeWindow === 'custom' && customTimeRange && (
-              <Button variant="outline" size="sm" onClick={() => setShowCustomTimeDialog(true)} className="text-white">
+              <Button variant="outline" size="sm" onClick={() => setShowCustomTimeDialog(true)} className="text-white w-full sm:w-auto">
                 <Clock className="h-4 w-4 mr-2" />
-                {format(customTimeRange.start, 'MMM d HH:mm')} - {format(customTimeRange.end, 'HH:mm')}
+                <span className="hidden sm:inline">{format(customTimeRange.start, 'MMM d HH:mm')} - {format(customTimeRange.end, 'HH:mm')}</span>
+                <span className="sm:hidden">Custom Range</span>
               </Button>
             )}
             <SchemaDropdown onAddNew={() => setShowSchemaModal(true)} />
