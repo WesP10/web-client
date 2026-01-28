@@ -17,7 +17,7 @@ export function Dashboard() {
     return () => clearInterval(interval);
   }, [fetchHubs]);
 
-  const filteredHubs = hubs.filter((hub) =>
+  const filteredHubs = (hubs || []).filter((hub) =>
     hub.hubId.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
