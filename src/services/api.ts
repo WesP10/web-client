@@ -73,8 +73,8 @@ export const authApi = {
 // Hubs API
 export const hubsApi = {
   getHubs: async (): Promise<HubInfo[]> => {
-    const response = await api.get<{ hubs: HubInfo[]; count: number }>('/api/hubs');
-    return response.data.hubs;
+    const response = await api.get<HubInfo[]>('/api/hubs');
+    return response.data;
   },
 
   getHub: async (hubId: string): Promise<HubInfo> => {
