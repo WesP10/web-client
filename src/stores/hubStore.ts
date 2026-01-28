@@ -43,11 +43,11 @@ export const useHubStore = create<HubState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const hubs = await hubsApi.getHubs();
-      set({ hubs, isLoading: false });
+      set({ hubs: hubs ?? [], isLoading: false });
     } catch (error: any) {
       const errorMessage =
         error.response?.data?.detail || 'Failed to fetch hubs';
-      set({ error: errorMessage, isLoading: false });
+      set({ hubs: [], error: errorMessage, isLoading: false });
     }
   },
 

@@ -20,7 +20,7 @@ interface HubWithDevices {
 }
 
 export function DeviceManager() {
-  const { hubs, fetchHubs, activeSubscriptions, addSubscription, removeSubscription, selectedDevices, toggleDeviceSelection, clearDeviceSelection } = useHubStore();
+  const { hubs = [], fetchHubs, activeSubscriptions, addSubscription, removeSubscription, selectedDevices, toggleDeviceSelection, clearDeviceSelection } = useHubStore();
   const { detectedSensors } = useTelemetryStore();
   const [hubsWithDevices, setHubsWithDevices] = useState<HubWithDevices[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -238,39 +238,39 @@ export function DeviceManager() {
   const selectedCount = selectedDevices.size;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-cyan-400">Device Manager</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-cyan-400">Device Manager</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-1">
           Manage device connections and telemetry subscriptions
         </p>
       </div>
 
       {/* Action Bar */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <CardContent className="pt-4 sm:pt-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
               <div className="flex items-center gap-2">
-                <CheckSquare className="h-5 w-5 text-muted-foreground" />
+                <CheckSquare className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                 <span className="text-sm font-medium">
                   {selectedCount} device{selectedCount !== 1 ? 's' : ''} selected
                 </span>
               </div>
               {selectedCount > 0 && (
-                <>
-                  <Button onClick={handleSubscribeSelected} size="sm">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button onClick={handleSubscribeSelected} size="sm" className="w-full sm:w-auto">
                     <Radio className="mr-2 h-4 w-4" />
                     Subscribe to Selected
                   </Button>
-                  <Button onClick={clearDeviceSelection} variant="outline" size="sm">
+                  <Button onClick={clearDeviceSelection} variant="outline" size="sm" className="w-full sm:w-auto">
                     <XSquare className="mr-2 h-4 w-4" />
                     Clear Selection
                   </Button>
-                </>
+                </div>
               )}
             </div>
-            <Button onClick={fetchDevices} variant="outline" size="sm" disabled={isLoading}>
+            <Button onClick={fetchDevices} variant="outline" size="sm" disabled={isLoading} className="w-full sm:w-auto">
               {isLoading ? 'Refreshing...' : 'Refresh'}
             </Button>
           </div>
@@ -285,18 +285,18 @@ export function DeviceManager() {
               className="cursor-pointer hover:bg-accent/50 transition-colors"
               onClick={() => toggleHubExpansion(hub.hubId)}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
                 <div className="flex items-center gap-3">
-                  <Layers className="h-5 w-5" />
+                  <Layers className="h-4 w-4 sm:h-5 sm:w-5" />
                   <div>
-                    <CardTitle className="text-lg">{hub.hubId}</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-base sm:text-lg">{hub.hubId}</CardTitle>
+                    <CardDescription className="text-sm">
                       {hub.ports.length} port{hub.ports.length !== 1 ? 's' : ''} •{' '}
                       {hub.connections.length} active connection{hub.connections.length !== 1 ? 's' : ''}
                     </CardDescription>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 self-start sm:self-center">
                   {hub.connected ? (
                     <Badge variant="default" className="bg-green-500">
                       <Wifi className="mr-1 h-3 w-3" />
@@ -329,7 +329,7 @@ export function DeviceManager() {
                     return (
                       <div
                         key={port.port_id}
-                        className={`flex items-center justify-between p-3 border rounded-lg hover:bg-accent/30 transition-colors cursor-pointer`}
+                        className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 p-3 border rounded-lg hover:bg-accent/30 transition-colors cursor-pointer`}
                         onClick={(e) => {
                           // Prevent toggling when clicking a button or checkbox
                           if (
@@ -343,14 +343,16 @@ export function DeviceManager() {
                           }
                         }}
                       >
-                        <div className="flex items-center gap-3 flex-1">
-                          <Checkbox
-                            checked={selected}
-                            onCheckedChange={() => toggleDeviceSelection(hub.hubId, port.port_id)}
-                            disabled={subscribed}
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div className="mt-1 flex-shrink-0">
+                            <Checkbox
+                              checked={selected}
+                              onCheckedChange={() => toggleDeviceSelection(hub.hubId, port.port_id)}
+                              disabled={subscribed}
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
                               <span className="font-medium text-sm">{port.port}</span>
                               {connection && (
                                 <Badge variant="outline" className="text-xs">
@@ -370,7 +372,7 @@ export function DeviceManager() {
                                 return null;
                               })()}
                             </div>
-                            <div className="text-xs text-muted-foreground mt-1">
+                            <div className="text-xs text-muted-foreground">
                               {port.description || port.manufacturer || 'Unknown device'}
                               {port.serial_number && ` • SN: ${port.serial_number}`}
                             </div>
@@ -381,7 +383,7 @@ export function DeviceManager() {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2 sm:ml-4">
                           {subscribed ? (
                             <>
                               <Badge className="bg-blue-500">

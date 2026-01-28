@@ -73,8 +73,8 @@ export const authApi = {
 // Hubs API
 export const hubsApi = {
   getHubs: async (): Promise<HubInfo[]> => {
-    const response = await api.get<{ hubs: HubInfo[]; count: number }>('/api/hubs');
-    return response.data.hubs;
+    const response = await api.get<HubInfo[]>('/api/hubs');
+    return response.data;
   },
 
   getHub: async (hubId: string): Promise<HubInfo> => {
@@ -83,23 +83,23 @@ export const hubsApi = {
   },
 
   getPorts: async (hubId: string): Promise<PortInfo[]> => {
-    const response = await api.get<{ ports: PortInfo[] }>(`/api/hubs/${hubId}/ports`);
-    return response.data.ports;
+    const response = await api.get<any>(`/api/hubs/${hubId}/ports`);
+    return (response.data.ports || response.data) as PortInfo[];
   },
 
   getConnections: async (hubId: string): Promise<ConnectionInfo[]> => {
-    const response = await api.get<{ connections: ConnectionInfo[] }>(`/api/hubs/${hubId}/connections`);
-    return response.data.connections;
+    const response = await api.get<any>(`/api/hubs/${hubId}/connections`);
+    return (response.data.connections || response.data) as ConnectionInfo[];
   },
 
   getTelemetry: async (hubId: string, limit?: number): Promise<TelemetryEntry[]> => {
-    const response = await api.get<TelemetryEntry[]>(
+    const response = await api.get<any>(
       `/api/hubs/${hubId}/telemetry`,
       {
         params: { limit },
       }
     );
-    return response.data;
+    return (response.data.telemetry || response.data) as TelemetryEntry[];
   },
 
   sendSerialWrite: async (
