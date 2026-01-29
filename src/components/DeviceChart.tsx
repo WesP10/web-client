@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo } from 'react';
+import { useRef, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,11 +24,10 @@ interface DeviceChartProps {
 
 export function DeviceChart({ data, dragHandleProps, onSeparate, isDragOver }: DeviceChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
-  const [isAnimating, setIsAnimating] = useState(false);
 
   // Handle merged chart data - memoized to prevent infinite loops
   const merged = useMemo(() => isMergedChart(data), [data]);
-  const sources = useMemo<DeviceChartData[]>(() => merged ? data.sources : [data], [merged, data]);
+  const sources = useMemo<DeviceChartData[]>(() => merged ? (data as any).sources : [data as DeviceChartData], [merged, data]);
   const allFields = useMemo(() => 
     sources.flatMap(source => 
       source.fields.map(field => ({
@@ -48,10 +47,7 @@ export function DeviceChart({ data, dragHandleProps, onSeparate, isDragOver }: D
 
   const handleSeparate = () => {
     if (merged && onSeparate) {
-      setIsAnimating(true);
-      setTimeout(() => {
-        onSeparate(data.id);
-      }, 300);
+      onSeparate((data as any).id);
     }
   };
 
@@ -106,9 +102,10 @@ export function DeviceChart({ data, dragHandleProps, onSeparate, isDragOver }: D
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
+    const deviceData = data as DeviceChartData;
     const fileName = merged 
-      ? `merged_chart_${data.id}_${Date.now()}.csv`
-      : `${data.sensorName}_${data.hubId}_${data.portId}_${Date.now()}.csv`;
+      ? `merged_chart_${(data as any).id}_${Date.now()}.csv`
+      : `${deviceData.sensorName}_${deviceData.hubId}_${deviceData.portId}_${Date.now()}.csv`;
     a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
@@ -126,7 +123,7 @@ export function DeviceChart({ data, dragHandleProps, onSeparate, isDragOver }: D
     const a = document.createElement('a');
     a.href = url;
     const imageFileName = merged
-      ? `merged_chart_${data.id}_${Date.now()}.${format}`
+      ? `merged_chart_${(data as any).id}_${Date.now()}.${format}`
       : `${(data as DeviceChartData).sensorName}_${(data as DeviceChartData).hubId}_${(data as DeviceChartData).portId}_${Date.now()}.${format}`;
     a.download = imageFileName;
     a.click();
@@ -149,7 +146,7 @@ export function DeviceChart({ data, dragHandleProps, onSeparate, isDragOver }: D
     
     pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
     const pdfFileName = merged
-      ? `merged_chart_${data.id}_${Date.now()}.pdf`
+      ? `merged_chart_${(data as any).id}_${Date.now()}.pdf`
       : `${(data as DeviceChartData).sensorName}_${(data as DeviceChartData).hubId}_${(data as DeviceChartData).portId}_${Date.now()}.pdf`;
     pdf.save(pdfFileName);
   };
@@ -157,7 +154,7 @@ export function DeviceChart({ data, dragHandleProps, onSeparate, isDragOver }: D
   return (
     <Card 
       ref={chartRef} 
-      className={`transition-all duration-100 ${isDragOver ? 'ring-2 ring-cyan-400 ring-offset-2 bg-accent/50' : ''} ${isAnimating ? 'animate-pulse' : ''}`}
+      className={isDragOver ? 'ring-2 ring-purple-500 ring-offset-2 bg-purple-500/10' : ''}
     >
       <CardHeader>
         <div className="flex items-center justify-between">
@@ -247,8 +244,8 @@ export function DeviceChart({ data, dragHandleProps, onSeparate, isDragOver }: D
                 strokeWidth={2}
                 dot={false}
                 name={`${field.displayName} (${field.unit})`}
-                animationDuration={100}
-                isAnimationActive={true}
+                animationDuration={0}
+                isAnimationActive={false}
               />
             ))}
           </LineChart>

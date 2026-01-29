@@ -34,8 +34,9 @@ export function LiveTelemetry() {
   const [showSchemaModal, setShowSchemaModal] = useState(false);
   const [chartOrder, setChartOrder] = useState<string[]>([]);
   const [mergedCharts, setMergedCharts] = useState<Map<string, MergedChartData>>(new Map());
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [shiftKeyPressed, setShiftKeyPressed] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  const [shiftPressed, setShiftPressed] = useState<boolean>(false);
 
   const { activeSubscriptions } = useHubStore();
   const { devices: telemetryDevices, getChartData } = useTelemetryStore();
@@ -122,7 +123,8 @@ export function LiveTelemetry() {
   };
 
   const onDragEnd = (result: any) => {
-    setDragOverIndex(null);
+    setDraggedIndex(null);
+    setDropTargetIndex(null);
     
     if (!result.destination) return;
     
@@ -132,11 +134,8 @@ export function LiveTelemetry() {
     // If same position, do nothing
     if (sourceIndex === destIndex) return;
     
-    // Debug: Log merge attempt
-    console.log('Drag ended:', { sourceIndex, destIndex, shiftKeyPressed });
-    
-    // Only merge if Shift key is held while dropping
-    if (shiftKeyPressed && sourceIndex !== destIndex) {
+    // Merge if Shift key was held during drop
+    if (shiftPressed) {
       const sourceKey = chartOrder[sourceIndex];
       const destKey = chartOrder[destIndex];
       
@@ -191,27 +190,25 @@ export function LiveTelemetry() {
     setChartOrder(items);
   };
   
+  const onDragStart = (start: any) => {
+    setDraggedIndex(start.source.index);
+  };
+  
   const onDragUpdate = (update: any) => {
     if (update.destination) {
-      setDragOverIndex(update.destination.index);
+      setDropTargetIndex(update.destination.index);
     } else {
-      setDragOverIndex(null);
+      setDropTargetIndex(null);
     }
   };
   
-  // Track Shift key for merge intent
+  // Track Shift key for merge mode
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Shift') {
-        console.log('Shift key pressed');
-        setShiftKeyPressed(true);
-      }
+      if (e.key === 'Shift') setShiftPressed(true);
     };
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Shift') {
-        console.log('Shift key released');
-        setShiftKeyPressed(false);
-      }
+      if (e.key === 'Shift') setShiftPressed(false);
     };
     
     window.addEventListener('keydown', handleKeyDown);
@@ -390,14 +387,7 @@ export function LiveTelemetry() {
       {/* Charts Section */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg sm:text-xl font-semibold text-cyan-400">Sensor Charts</h2>
-            {shiftKeyPressed && (
-              <span className="text-xs bg-cyan-500 text-white px-2 py-1 rounded font-semibold animate-pulse">
-                MERGE MODE
-              </span>
-            )}
-          </div>
+          <h2 className="text-lg sm:text-xl font-semibold text-cyan-400">Sensor Charts</h2>
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <Select value={timeWindow} onValueChange={handleTimeWindowChange}>
               <SelectTrigger className="w-full sm:w-[180px] h-8 rounded-md text-xs px-3 text-white border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground">
@@ -437,38 +427,54 @@ export function LiveTelemetry() {
             </CardContent>
           </Card>
         ) : (
-          <DragDropContext onDragEnd={onDragEnd} onDragUpdate={onDragUpdate}>
+          <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd} onDragUpdate={onDragUpdate}>
             <Droppable droppableId="charts">
               {(provided) => (
                 <div
                   {...provided.droppableProps}
                   ref={provided.innerRef}
-                  className="space-y-4"
+                  className="space-y-4 relative"
                 >
                   {chartOrder
                     .map(key => allCharts.get(key))
                     .filter(Boolean)
                     .map((chartData, index) => {
                       const key = isMergedChart(chartData!) ? chartData!.id : `${(chartData as DeviceChartData).hubId}:${(chartData as DeviceChartData).portId}`;
+                      const isDragging = draggedIndex === index;
+                      const isDropTarget = dropTargetIndex === index && draggedIndex !== null && draggedIndex !== index;
 
                       return (
-                        <Draggable key={key} draggableId={key} index={index}>
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              style={provided.draggableProps.style}
-                              className={snapshot.isDragging ? 'opacity-80' : ''}
-                            >
-                              <DeviceChart
-                                data={chartData!}
-                                dragHandleProps={provided.dragHandleProps}
-                                onSeparate={handleSeparateChart}
-                                isDragOver={dragOverIndex === index && !snapshot.isDragging && shiftKeyPressed}
-                              />
+                        <div key={key} className="relative">
+                          {/* Blue position indicator */}
+                          {isDropTarget && (
+                            <div className={`absolute left-0 right-0 h-1 ${shiftPressed ? 'bg-purple-500' : 'bg-cyan-500'} rounded-full z-10 transition-colors ${
+                              dropTargetIndex! < draggedIndex! ? '-top-2' : '-bottom-2'
+                            }`}>
+                              {shiftPressed && (
+                                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-purple-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                                  Merge with {isMergedChart(chartData!) ? 'chart' : (chartData as DeviceChartData).sensorName}
+                                </div>
+                              )}
                             </div>
                           )}
-                        </Draggable>
+                          <Draggable key={key} draggableId={key} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                className={isDragging ? 'opacity-30' : ''}
+                                style={provided.draggableProps.style}
+                              >
+                                <DeviceChart
+                                  data={chartData!}
+                                  dragHandleProps={provided.dragHandleProps}
+                                  onSeparate={handleSeparateChart}
+                                  isDragOver={isDropTarget && shiftPressed}
+                                />
+                              </div>
+                            )}
+                          </Draggable>
+                        </div>
                       );
                     })}
                   {provided.placeholder}
