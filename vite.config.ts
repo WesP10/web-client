@@ -11,6 +11,7 @@ export default defineConfig({
     hmr: {
       clientPort: 443,
       host: 'gui.cornellhyperloop.com',
+      protocol: 'wss',
     },
   },
   resolve: {

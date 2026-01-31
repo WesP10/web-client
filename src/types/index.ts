@@ -200,6 +200,18 @@ export interface DeviceChartData {
   fields: FieldChartData[];
 }
 
+export interface MergedChartData {
+  id: string;
+  sources: DeviceChartData[];
+  isMerged: true;
+}
+
+export type ChartData = DeviceChartData | MergedChartData;
+
+export function isMergedChart(data: ChartData): data is MergedChartData {
+  return 'isMerged' in data && data.isMerged === true;
+}
+
 // Time window types
 export type TimeWindow = '5m' | '15m' | '30m' | '1h' | 'custom';
 

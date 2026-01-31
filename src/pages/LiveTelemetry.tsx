@@ -12,7 +12,8 @@ import { ChevronDown, ChevronRight, Send, Terminal as TerminalIcon, Clock } from
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { commandService } from '@/services/commandService';
 import { format } from 'date-fns';
-import type { TimeWindow, SensorMapping, CustomTimeRange, DeviceChartData } from '@/types';
+import type { TimeWindow, SensorMapping, CustomTimeRange, DeviceChartData, ChartData, MergedChartData } from '@/types';
+import { isMergedChart } from '@/types';
 import { useHubStore } from '@/stores/hubStore';
 import { useTelemetryStore } from '@/stores/telemetryStore';
 import { ChartSchemaModal } from '@/components/ChartSchemaModal';
@@ -32,13 +33,17 @@ export function LiveTelemetry() {
   const [expandedTerminals, setExpandedTerminals] = useState<Set<string>>(new Set());
   const [showSchemaModal, setShowSchemaModal] = useState(false);
   const [chartOrder, setChartOrder] = useState<string[]>([]);
+  const [mergedCharts, setMergedCharts] = useState<Map<string, MergedChartData>>(new Map());
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  const [shiftPressed, setShiftPressed] = useState<boolean>(false);
 
   const { activeSubscriptions } = useHubStore();
   const { devices: telemetryDevices, getChartData } = useTelemetryStore();
 
   // Get devices with chart data
   const devicesWithCharts = activeSubscriptions
-    .map(sub => {
+    .map((sub: any) => {
       const key = `${sub.hubId}:${sub.portId}`;
 
       // Fetch raw fields from store (getChartData already applies a time window filter for standard windows)
@@ -48,9 +53,9 @@ export function LiveTelemetry() {
 
       // If custom range selected, further filter the returned points to within start..end
       const filteredFields = (timeWindow === 'custom' && customTimeRange)
-        ? rawFields.map(f => ({
+        ? rawFields.map((f: any) => ({
             ...f,
-            data: f.data.filter(p => p.timestamp >= customTimeRange.start.getTime() && p.timestamp <= customTimeRange.end.getTime())
+            data: f.data.filter((p: any) => p.timestamp >= customTimeRange.start.getTime() && p.timestamp <= customTimeRange.end.getTime())
           }))
         : rawFields;
 
@@ -63,17 +68,32 @@ export function LiveTelemetry() {
 
       return { sub, chartData: deviceChartData, key };
     })
-    .filter(({ chartData }) => chartData && chartData.fields.length > 0);
+    .filter(({ chartData }: any) => chartData && chartData.fields.length > 0);
+
+  // Combine device charts with merged charts
+  const allCharts = new Map<string, ChartData>();
+  
+  // Add individual device charts
+  devicesWithCharts.forEach(({ key, chartData }: any) => {
+    if (chartData && !Array.from(mergedCharts.values()).some(m => m.sources.some(s => `${s.hubId}:${s.portId}` === key))) {
+      allCharts.set(key, chartData);
+    }
+  });
+  
+  // Add merged charts
+  mergedCharts.forEach((chart, id) => {
+    allCharts.set(id, chart);
+  });
 
   // Initialize chart order when devices change
   useEffect(() => {
-    const newKeys = devicesWithCharts.map(d => d.key);
+    const newKeys = Array.from(allCharts.keys());
     setChartOrder(prev => {
       const existingKeys = prev.filter(k => newKeys.includes(k));
       const missingKeys = newKeys.filter(k => !prev.includes(k));
       return [...existingKeys, ...missingKeys];
     });
-  }, [devicesWithCharts.length]);
+  }, [allCharts.size]);
 
   const applyCustomTimeRange = () => {
     if (!customStartDate || !customStartTime || !customEndDate || !customEndTime) {
@@ -103,13 +123,122 @@ export function LiveTelemetry() {
   };
 
   const onDragEnd = (result: any) => {
+    setDraggedIndex(null);
+    setDropTargetIndex(null);
+    
     if (!result.destination) return;
     
-    const items = Array.from(chartOrder);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
+    const sourceIndex = result.source.index;
+    const destIndex = result.destination.index;
     
+    // If same position, do nothing
+    if (sourceIndex === destIndex) return;
+    
+    // Merge if Shift key was held during drop
+    if (shiftPressed) {
+      const sourceKey = chartOrder[sourceIndex];
+      const destKey = chartOrder[destIndex];
+      
+      const sourceChart = allCharts.get(sourceKey);
+      const destChart = allCharts.get(destKey);
+      
+      if (sourceChart && destChart) {
+        // Extract DeviceChartData from both sources
+        const sourceSources: DeviceChartData[] = isMergedChart(sourceChart) 
+          ? sourceChart.sources 
+          : [sourceChart];
+        const destSources: DeviceChartData[] = isMergedChart(destChart) 
+          ? destChart.sources 
+          : [destChart];
+        
+        // Create new merged chart
+        const mergedId = `merged-${Date.now()}`;
+        const newMerged: MergedChartData = {
+          id: mergedId,
+          sources: [...destSources, ...sourceSources],
+          isMerged: true
+        };
+        
+        // Update merged charts
+        const newMergedCharts = new Map(mergedCharts);
+        
+        // Remove old merged charts if they existed
+        if (isMergedChart(sourceChart)) {
+          newMergedCharts.delete(sourceChart.id);
+        }
+        if (isMergedChart(destChart)) {
+          newMergedCharts.delete(destChart.id);
+        }
+        
+        newMergedCharts.set(mergedId, newMerged);
+        setMergedCharts(newMergedCharts);
+        
+        // Update chart order: remove source, replace dest with merged
+        const newOrder = chartOrder.filter((_, i) => i !== sourceIndex);
+        const adjustedDestIndex = sourceIndex < destIndex ? destIndex - 1 : destIndex;
+        newOrder[adjustedDestIndex] = mergedId;
+        setChartOrder(newOrder);
+        
+        return;
+      }
+    }
+    
+    // Just reorder
+    const items = Array.from(chartOrder);
+    const [reorderedItem] = items.splice(sourceIndex, 1);
+    items.splice(destIndex, 0, reorderedItem);
     setChartOrder(items);
+  };
+  
+  const onDragStart = (start: any) => {
+    setDraggedIndex(start.source.index);
+  };
+  
+  const onDragUpdate = (update: any) => {
+    if (update.destination) {
+      setDropTargetIndex(update.destination.index);
+    } else {
+      setDropTargetIndex(null);
+    }
+  };
+  
+  // Track Shift key for merge mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') setShiftPressed(true);
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') setShiftPressed(false);
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+  
+  const handleSeparateChart = (chartId: string) => {
+    const chart = mergedCharts.get(chartId);
+    if (!chart) return;
+    
+    // Remove the merged chart
+    const newMergedCharts = new Map(mergedCharts);
+    newMergedCharts.delete(chartId);
+    setMergedCharts(newMergedCharts);
+    
+    // Add individual charts back to order
+    const chartIndex = chartOrder.indexOf(chartId);
+    const newOrder = [...chartOrder];
+    newOrder.splice(chartIndex, 1);
+    
+    // Insert individual chart keys
+    const individualKeys = chart.sources.map(s => `${s.hubId}:${s.portId}`);
+    newOrder.splice(chartIndex, 0, ...individualKeys);
+    
+    setChartOrder(newOrder);
   };
 
   const handleSerialInput = (key: string, value: string) => {
@@ -171,7 +300,7 @@ export function LiveTelemetry() {
           </Card>
         ) : (
           <div className="space-y-2">
-            {activeSubscriptions.map((sub) => {
+            {activeSubscriptions.map((sub: any) => {
               const key = `${sub.hubId}:${sub.portId}`;
               const device = telemetryDevices.get(key);
               const isExpanded = expandedTerminals.has(key);
@@ -298,39 +427,54 @@ export function LiveTelemetry() {
             </CardContent>
           </Card>
         ) : (
-          <DragDropContext onDragEnd={onDragEnd}>
+          <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd} onDragUpdate={onDragUpdate}>
             <Droppable droppableId="charts">
               {(provided) => (
                 <div
                   {...provided.droppableProps}
                   ref={provided.innerRef}
-                  className="space-y-4"
+                  className="space-y-4 relative"
                 >
                   {chartOrder
-                    .map(key => devicesWithCharts.find(d => d.key === key))
+                    .map(key => allCharts.get(key))
                     .filter(Boolean)
-                    .map((item, index) => {
-                      const { chartData, key } = item!;
-                      if (!chartData) return null;
+                    .map((chartData, index) => {
+                      const key = isMergedChart(chartData!) ? chartData!.id : `${(chartData as DeviceChartData).hubId}:${(chartData as DeviceChartData).portId}`;
+                      const isDragging = draggedIndex === index;
+                      const isDropTarget = dropTargetIndex === index && draggedIndex !== null && draggedIndex !== index;
 
                       return (
-                        <Draggable key={key} draggableId={key} index={index}>
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              style={{
-                                ...provided.draggableProps.style,
-                                opacity: snapshot.isDragging ? 0.8 : 1,
-                              }}
-                            >
-                              <DeviceChart
-                                data={chartData}
-                                dragHandleProps={provided.dragHandleProps}
-                              />
+                        <div key={key} className="relative">
+                          {/* Blue position indicator */}
+                          {isDropTarget && (
+                            <div className={`absolute left-0 right-0 h-1 ${shiftPressed ? 'bg-purple-500' : 'bg-cyan-500'} rounded-full z-10 transition-colors ${
+                              dropTargetIndex! < draggedIndex! ? '-top-2' : '-bottom-2'
+                            }`}>
+                              {shiftPressed && (
+                                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-purple-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                                  Merge with {isMergedChart(chartData!) ? 'chart' : (chartData as DeviceChartData).sensorName}
+                                </div>
+                              )}
                             </div>
                           )}
-                        </Draggable>
+                          <Draggable key={key} draggableId={key} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                className={isDragging ? 'opacity-30' : ''}
+                                style={provided.draggableProps.style}
+                              >
+                                <DeviceChart
+                                  data={chartData!}
+                                  dragHandleProps={provided.dragHandleProps}
+                                  onSeparate={handleSeparateChart}
+                                  isDragOver={isDropTarget && shiftPressed}
+                                />
+                              </div>
+                            )}
+                          </Draggable>
+                        </div>
                       );
                     })}
                   {provided.placeholder}
